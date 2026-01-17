@@ -91,4 +91,42 @@ else you will get this error : injected.js:1
 value	@	injected.js:1
 **
 
+While developing i also added this sql on supabase make sure to add it to avoid errors : -- Add missing columns if not already present
+ALTER TABLE profiles
+    ADD COLUMN IF NOT EXISTS username TEXT UNIQUE,
+    ADD COLUMN IF NOT EXISTS anonymous_mode BOOLEAN DEFAULT FALSE,
+    ADD COLUMN IF NOT EXISTS email_suffix TEXT DEFAULT '@kasmail.com' NOT NULL;
+
+-- Make username nullable initially (user can choose later)
+-- But enforce uniqueness when set
+ALTER TABLE profiles
+    ALTER COLUMN username DROP NOT NULL;
+
+-- Optional: index for faster lookup
+CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
+
+-- RLS update: allow users to update their own row
+-- (assuming you already have basic RLS on profiles)
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile" ON profiles
+    FOR UPDATE USING (wallet_address = auth.uid()::text);
+
+    create bucket attachement if yoiu need attachment to our email : attachments
+
+and run this sql : ALTER TABLE emails
+  ADD COLUMN IF NOT EXISTS attachment_url TEXT,
+  ADD COLUMN IF NOT EXISTS attachment_name TEXT,
+  ADD COLUMN IF NOT EXISTS attachment_type TEXT;
+
+  Add this if you need for dust transaction to be sent to record email on chain : ALTER TABLE emails
+  ADD COLUMN IF NOT EXISTS kaspa_txid TEXT;
+
+-- Optional: store user preference (per-profile)
+ALTER TABLE profiles
+  ADD COLUMN IF NOT EXISTS onchain_proof_default BOOLEAN DEFAULT FALSE;
+
+
+  in real development ensure no console error for security reasons.
+
+The design is updated by Ai , since i am not much of a design guy myself , so feel free to play with the design with Ai 
   You can update your logo if you want , we will bbe using the custom Vite logo. 

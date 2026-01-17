@@ -41,7 +41,7 @@ export default function Login() {
       // Optional: store session locally (for protected routes)
       localStorage.setItem('kasmail_wallet', address)
 
-      navigate('/dashboard')
+      navigate('/inbox')
     } catch  {
       setError('Connection failed. Try again.')
     } finally {
