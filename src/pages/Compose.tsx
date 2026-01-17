@@ -26,7 +26,7 @@ export default function Compose() {
 
   // On-chain proof toggle
   const [onchainProof, setOnchainProof] = useState(false)
-  const [txId, setTxId] = useState<string | null>(null)
+  const [_txId, setTxId] = useState<string | null>(null)
 
   // Load sender preview
   useEffect(() => {
@@ -184,10 +184,6 @@ export default function Compose() {
     }
   }
 
-  const removeAttachment = () => {
-    setFile(null)
-    setPreviewUrl(null)
-  }
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-black via-gray-950 to-black text-white">
