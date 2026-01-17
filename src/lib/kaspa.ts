@@ -18,7 +18,7 @@ declare global {
       switchNetwork?: (network: string) => Promise<void>
       disconnect?: (origin: string) => Promise<void>
       getPublicKey?: () => Promise<string>
-      getUtxoEntries?: () => Promise<[]>
+      getUtxoEntries?: () => Promise<any[]>
     }
   }
 }
@@ -98,33 +98,38 @@ export async function signChallenge(challenge: string): Promise<string | null> {
 }
 
 /**
- * Send tiny dust transaction for on-chain proof
+ * Send tiny dust transaction (~0.0001 KAS) for on-chain proof
+ * This will trigger wallet popup for user to confirm/sign the send
  * Returns txid or null if failed/cancelled
  */
 export async function sendDustTx(): Promise<string | null> {
   if (!window.kasware?.sendKaspa) {
-    console.warn('Kasware sendKaspa not available – dust tx skipped')
+    console.warn('Kasware sendKaspa method is not available in this version – dust tx skipped')
+    alert('On-chain proof not supported in current Kasware version. Message will send without proof.')
     return null
   }
 
   const adminWallet = import.meta.env.VITE_ADMIN_WALLET
   if (!adminWallet) {
-    console.error('VITE_ADMIN_WALLET not set in .env')
+    console.error('VITE_ADMIN_WALLET is not set in .env – dust tx skipped')
+    alert('Developer wallet not configured. Message will send without on-chain proof.')
     return null
   }
 
   try {
-    // Send dust to developer/admin wallet
+    console.log(`Attempting to send dust (${Number(DUST_SOMPI)} sompi) to ${adminWallet}...`)
+
     const txid = await window.kasware.sendKaspa(
       adminWallet,
-      Number(DUST_SOMPI), // convert BigInt → number (safe for small values)
-      { priorityFee: 0 } // no extra priority fee needed for dust
+      Number(DUST_SOMPI), // safe conversion for small number
+      { priorityFee: 0 }   // no extra fee needed
     )
 
-    console.log('Dust tx sent:', txid)
+    console.log('Dust tx successful! TxID:', txid)
     return txid
-  } catch (err) {
-    console.error('Dust transaction failed:', err)
-    return null // user cancelled or error → no tx
+  } catch  {
+    console.error('Dust transaction failed or user cancelled:')
+    // User cancelled or error – proceed without tx
+    return null
   }
 }

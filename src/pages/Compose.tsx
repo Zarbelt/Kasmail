@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabaseClient'
 import { getCurrentKaswareAddress, hasMinimumKAS, sendDustTx } from '../lib/kaspa'
 import { 
   Send, ArrowLeft, Lock, Paperclip, Info, X, Image as ImageIcon, 
-  FileText, Loader2, ToggleLeft, ToggleRight 
+  FileText, Loader2, ToggleRight, ToggleLeft 
 } from 'lucide-react'
 
 export default function Compose() {
@@ -149,6 +149,11 @@ export default function Compose() {
       let txIdResult: string | null = null
       if (onchainProof) {
         txIdResult = await sendDustTx()
+        if (txIdResult) {
+          console.log('On-chain proof successful! TxID:', txIdResult)
+        } else {
+          console.warn('On-chain proof skipped or failed – sending without tx')
+        }
       }
 
       const { error: insertError } = await supabase
@@ -167,10 +172,14 @@ export default function Compose() {
 
       if (insertError) throw insertError
 
-      // Success message with tx link if available
+      // Success feedback
       if (txIdResult) {
         const explorerLink = `https://explorer.kaspa.org/txs/${txIdResult}`
-        alert(`KasMail sent with on-chain proof!\n\nTransaction: ${txIdResult}\n\nView on Kaspa Explorer:\n${explorerLink}`)
+        alert(
+          `KasMail sent with on-chain proof!\n\n` +
+          `Transaction ID: ${txIdResult}\n` +
+          `View on Kaspa Explorer: ${explorerLink}`
+        )
       } else {
         alert('KasMail sent successfully! (no on-chain proof attached)')
       }
@@ -178,12 +187,12 @@ export default function Compose() {
       navigate('/inbox')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to send message'
+      console.error('Send error:', err)
       setError(message)
     } finally {
       setSending(false)
     }
   }
-
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-br from-black via-gray-950 to-black text-white">
@@ -299,9 +308,9 @@ export default function Compose() {
                 <Send className="w-5 h-5 text-blue-400" />
               </div>
               <div>
-                <p className="font-medium text-white">Record on-chain (optional)</p>
+                <p className="font-medium text-white">Send ~0.0001 KAS to developer for on-chain proof</p>
                 <p className="text-sm text-gray-400">
-                  Send ~0.0001 KAS (~$0.001) to developer as proof
+                  (optional – tiny fee, ~$0.001)
                 </p>
               </div>
             </div>
@@ -325,7 +334,7 @@ export default function Compose() {
               <strong>Security requirement:</strong> ≥ 1 KAS balance in wallet (never spent, just anti-spam check).
               {onchainProof && (
                 <span className="block mt-1 text-blue-300">
-                  Optional: Tiny dust tx (~0.0001 KAS) will be sent to developer wallet for on-chain record.
+                  When sending, wallet will open for you to confirm the tiny dust transaction.
                 </span>
               )}
             </div>
