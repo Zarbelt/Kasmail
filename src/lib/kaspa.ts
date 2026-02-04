@@ -25,23 +25,23 @@ declare global {
 
 // Constants
 const MINIMUM_SOMPI = 100_000_000n // 1 KAS
-const DUST_SOMPI = 10_000n // ~0.0001 KAS (~$0.001 at current prices)
+const ANTI_BOT_FEE_SOMPI = 200_000_000n // 2 KAS (anti-bot fee)
 
 /**
  * Connect wallet and request permission
  */
 export async function connectKaswareWallet(): Promise<string | null> {
   if (!window.kasware) {
-    alert('Kasware Wallet not detected. Please install the extension.')
-    return null
+    alert('Kasware Wallet not detected. Please install the extension.');
+    return null;
   }
 
   try {
-    const accounts = await window.kasware.requestAccounts()
-    return accounts?.[0] ?? null
+    const accounts = await window.kasware.requestAccounts();
+    return accounts?.[0] ?? null;
   } catch (err) {
-    console.error('Kasware connection rejected:', err)
-    return null
+    console.error('Kasware connection rejected:', err);
+    return null;
   }
 }
 
@@ -49,14 +49,14 @@ export async function connectKaswareWallet(): Promise<string | null> {
  * Get currently connected address (no popup)
  */
 export async function getCurrentKaswareAddress(): Promise<string | null> {
-  if (!window.kasware) return null
+  if (!window.kasware) return null;
 
   try {
-    const accounts = await window.kasware.getAccounts()
-    return accounts?.[0] ?? null
+    const accounts = await window.kasware.getAccounts();
+    return accounts?.[0] ?? null;
   } catch (err) {
-    console.error('Kasware getAccounts failed:', err)
-    return null
+    console.error('Kasware getAccounts failed:', err);
+    return null;
   }
 }
 
@@ -64,14 +64,14 @@ export async function getCurrentKaswareAddress(): Promise<string | null> {
  * Get wallet balance in SOMPI (BigInt safe)
  */
 export async function getKaspaBalanceSompi(): Promise<bigint> {
-  if (!window.kasware) return 0n
+  if (!window.kasware) return 0n;
 
   try {
-    const balance = await window.kasware.getBalance()
-    return BigInt(balance.total ?? 0)
+    const balance = await window.kasware.getBalance();
+    return BigInt(balance.total ?? 0);
   } catch (err) {
-    console.error('Kasware balance fetch failed:', err)
-    return 0n
+    console.error('Kasware balance fetch failed:', err);
+    return 0n;
   }
 }
 
@@ -79,57 +79,57 @@ export async function getKaspaBalanceSompi(): Promise<bigint> {
  * Check minimum KAS requirement (security balance, not deducted)
  */
 export async function hasMinimumKAS(): Promise<boolean> {
-  const balance = await getKaspaBalanceSompi()
-  return balance >= MINIMUM_SOMPI
+  const balance = await getKaspaBalanceSompi();
+  return balance >= MINIMUM_SOMPI;
 }
 
 /**
  * Sign login challenge
  */
 export async function signChallenge(challenge: string): Promise<string | null> {
-  if (!window.kasware?.signMessage) return null
+  if (!window.kasware?.signMessage) return null;
 
   try {
-    return await window.kasware.signMessage(challenge)
+    return await window.kasware.signMessage(challenge);
   } catch (err) {
-    console.error('Kasware signMessage failed:', err)
-    return null
+    console.error('Kasware signMessage failed:', err);
+    return null;
   }
 }
 
 /**
- * Send tiny dust transaction (~0.0001 KAS) for on-chain proof
+ * Send 2 KAS anti-bot fee transaction for email sending
  * This will trigger wallet popup for user to confirm/sign the send
  * Returns txid or null if failed/cancelled
  */
-export async function sendDustTx(): Promise<string | null> {
+export async function sendAntiBotFee(): Promise<string | null> {
   if (!window.kasware?.sendKaspa) {
-    console.warn('Kasware sendKaspa method is not available in this version – dust tx skipped')
-    alert('On-chain proof not supported in current Kasware version. Message will send without proof.')
-    return null
+    console.warn('Kasware sendKaspa method is not available in this version – anti-bot fee skipped');
+    alert('Anti-bot fee not supported in current Kasware version. Message will send without fee.');
+    return null;
   }
 
-  const adminWallet = import.meta.env.VITE_ADMIN_WALLET
+  const adminWallet = import.meta.env.VITE_ADMIN_WALLET;
   if (!adminWallet) {
-    console.error('VITE_ADMIN_WALLET is not set in .env – dust tx skipped')
-    alert('Developer wallet not configured. Message will send without on-chain proof.')
-    return null
+    console.error('VITE_ADMIN_WALLET is not set in .env – anti-bot fee skipped');
+    alert('Developer wallet not configured. Message will send without anti-bot fee.');
+    return null;
   }
 
   try {
-    console.log(`Attempting to send dust (${Number(DUST_SOMPI)} sompi) to ${adminWallet}...`)
+    console.log(`Attempting to send anti-bot fee (${Number(ANTI_BOT_FEE_SOMPI)} sompi) to ${adminWallet}...`);
 
     const txid = await window.kasware.sendKaspa(
       adminWallet,
-      Number(DUST_SOMPI), // safe conversion for small number
+      Number(ANTI_BOT_FEE_SOMPI), // safe conversion for small number
       { priorityFee: 0 }   // no extra fee needed
-    )
+    );
 
-    console.log('Dust tx successful! TxID:', txid)
-    return txid
-  } catch  {
-    console.error('Dust transaction failed or user cancelled:')
+    console.log('Anti-bot fee tx successful! TxID:', txid);
+    return txid;
+  } catch (err) {
+    console.error('Anti-bot fee transaction failed or user cancelled:', err);
     // User cancelled or error – proceed without tx
-    return null
+    return null;
   }
 }

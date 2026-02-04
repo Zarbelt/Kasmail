@@ -2,10 +2,10 @@
 import { useState, useEffect, type ChangeEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import { getCurrentKaswareAddress, hasMinimumKAS, sendDustTx } from '../lib/kaspa'
+import { getCurrentKaswareAddress, hasMinimumKAS, sendAntiBotFee } from '../lib/kaspa'
 import { 
   Send, ArrowLeft, Lock, Paperclip, Info, X, Image as ImageIcon, 
-  FileText, Loader2, ToggleRight, ToggleLeft 
+  FileText, Loader2
 } from 'lucide-react'
 
 export default function Compose() {
@@ -24,9 +24,8 @@ export default function Compose() {
   const [uploading, setUploading] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
-  // On-chain proof toggle
-  const [onchainProof, setOnchainProof] = useState(false)
-  const [_txId, setTxId] = useState<string | null>(null)
+  // Anti-bot fee txId
+  const [txId, setTxId] = useState<string | null>(null)
 
   // Load sender preview
   useEffect(() => {
@@ -78,82 +77,51 @@ export default function Compose() {
     const selected = e.target.files?.[0]
     if (!selected) return
 
-    if (selected.size > 20 * 1024 * 1024) {
-      setError('File too large (max 20MB)')
+    if (selected.size > 5 * 1024 * 1024) { // 5MB limit
+      setError('File too large (max 5MB)')
       return
     }
 
     setFile(selected)
-    setError(null)
-
     if (selected.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onload = () => setPreviewUrl(reader.result as string)
-      reader.readAsDataURL(selected)
-    } else {
-      setPreviewUrl(null)
+      const url = URL.createObjectURL(selected)
+      setPreviewUrl(url)
     }
   }
 
-  const uploadFile = async (): Promise<string | null> => {
-    if (!file) return null
-    setUploading(true)
-
-    const ext = file.name.split('.').pop()
-    const name = `${Date.now()}.${ext}`
-    const path = name
-
-    const { error } = await supabase.storage
-      .from('attachments')
-      .upload(path, file)
-
-    if (error) {
-      setError('Upload failed: ' + error.message)
-      setUploading(false)
-      return null
-    }
-
-    const { data } = supabase.storage.from('attachments').getPublicUrl(path)
-    setUploading(false)
-    return data.publicUrl
+  const removeAttachment = () => {
+    setFile(null)
+    setPreviewUrl(null)
   }
 
   const handleSend = async () => {
-    if (!to.trim() || !body.trim()) {
-      setError('Recipient and message body required')
-      return
-    }
-
-    if (!to.startsWith('kaspa:')) {
-      setError('Invalid Kaspa address (must start with kaspa:)')
-      return
-    }
-
     setSending(true)
     setError(null)
-    setTxId(null)
 
     try {
       const from = await getCurrentKaswareAddress()
-      if (!from) throw new Error('No wallet connected')
+      if (!from) throw new Error('Wallet not connected')
 
       const hasMin = await hasMinimumKAS()
-      if (!hasMin) throw new Error('Need ≥ 1 KAS in wallet (security check only – not spent)')
+      if (!hasMin) throw new Error('Minimum 1 KAS required')
 
-      let uploadedUrl: string | null = null
-      if (file) {
-        uploadedUrl = await uploadFile()
-        if (!uploadedUrl) throw new Error('Attachment upload failed')
+      // Always send anti-bot fee
+      const feeTxId = await sendAntiBotFee()
+      if (!feeTxId) {
+        throw new Error('Anti-bot fee transaction failed or cancelled. Cannot send email without fee.')
       }
+      setTxId(feeTxId)
 
-      let txIdResult: string | null = null
-      if (onchainProof) {
-        txIdResult = await sendDustTx()
-        if (txIdResult) {
-          console.log('On-chain proof successful! TxID:', txIdResult)
-        } else {
-          console.warn('On-chain proof skipped or failed – sending without tx')
-        }
+      let attachmentUrl = null
+      if (file) {
+        setUploading(true)
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('attachments')
+          .upload(`${from}/${crypto.randomUUID()}/${file.name}`, file)
+
+        if (uploadError) throw uploadError
+        attachmentUrl = supabase.storage.from('attachments').getPublicUrl(uploadData.path).data.publicUrl
+        setUploading(false)
       }
 
       const { error: insertError } = await supabase
@@ -161,182 +129,131 @@ export default function Compose() {
         .insert({
           from_wallet: from,
           to_wallet: to,
-          subject: subject.trim() || '(No subject)',
-          body: body.trim(),
-          reply_to: replyToId || null,
-          attachment_url: uploadedUrl,
-          attachment_name: file?.name || null,
-          attachment_type: file?.type || null,
-          kaspa_txid: txIdResult,
+          subject,
+          body: attachmentUrl ? `${body}\n\nAttachment: ${attachmentUrl}` : body,
+          onchain_tx: feeTxId  // Assuming you add this field to your Email type and DB
         })
 
       if (insertError) throw insertError
 
-      // Success feedback
-      if (txIdResult) {
-        const explorerLink = `https://explorer.kaspa.org/txs/${txIdResult}`
-        alert(
-          `KasMail sent with on-chain proof!\n\n` +
-          `Transaction ID: ${txIdResult}\n` +
-          `View on Kaspa Explorer: ${explorerLink}`
-        )
-      } else {
-        alert('KasMail sent successfully! (no on-chain proof attached)')
-      }
-
-      navigate('/inbox')
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to send message'
-      console.error('Send error:', err)
-      setError(message)
+      navigate('/dashboard')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send')
     } finally {
       setSending(false)
     }
   }
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-br from-black via-gray-950 to-black text-white">
-      <header className="sticky top-0 z-10 border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-xl p-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <button
-            onClick={() => navigate('/inbox')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-900/50 hover:bg-gray-800/70 border border-gray-800 transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
+    <div className="min-h-screen bg-gradient-to-br from-black to-gray-950 text-white">
+      <main className="max-w-4xl mx-auto p-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2 text-gray-300 hover:text-white">
+            <ArrowLeft className="w-5 h-5" />
             Back
           </button>
-
-          <div className="flex items-center gap-3">
-            <Lock className="w-5 h-5 text-emerald-400" />
-            <span className="text-sm font-medium text-emerald-300">Encrypted</span>
-          </div>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent">
+            Compose KasMail
+          </h1>
         </div>
-      </header>
 
-      <main className="flex-1 overflow-auto p-4 md:p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+        {/* Form */}
+        <div className="space-y-6 bg-gray-900/40 p-8 rounded-2xl border border-gray-800/50 backdrop-blur-xl">
           {error && (
-            <div className="p-4 rounded-xl bg-red-950/50 border border-red-800 text-red-200">
+            <div className="bg-red-500/10 border border-red-500/20 text-red-300 p-4 rounded-xl flex items-center gap-3">
+              <X className="w-5 h-5" />
               {error}
             </div>
           )}
 
-          {/* Sender Preview */}
-          <div className="p-4 rounded-xl bg-gray-900/50 border border-gray-800">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs uppercase text-gray-400">From</span>
+          {/* From */}
+          <div className="space-y-2">
+            <label className="text-sm text-gray-400 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-emerald-400" />
+              From
+            </label>
+            <div className="p-4 bg-gray-800/40 rounded-xl border border-gray-700/50 text-white">
+              {senderPreview}
             </div>
-            <p className="font-medium text-emerald-300">{senderPreview}</p>
           </div>
 
           {/* To */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-300">To</label>
+            <label className="text-sm text-gray-400">To (Kaspa wallet address)</label>
             <input
-              type="text"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              placeholder="kaspa:q..."
-              className="w-full p-4 bg-gray-900/50 border border-gray-800 rounded-xl focus:border-emerald-500 focus:outline-none font-mono"
+              placeholder="kaspa:qp... or username@kasmail.com"
+              className="w-full p-4 bg-gray-800/40 rounded-xl border border-gray-700/50 focus:border-emerald-500/50 outline-none transition-all text-white placeholder:text-gray-500"
             />
           </div>
 
           {/* Subject */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-300">Subject</label>
+            <label className="text-sm text-gray-400">Subject</label>
             <input
-              type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="(optional)"
-              className="w-full p-4 bg-gray-900/50 border border-gray-800 rounded-xl focus:border-emerald-500 focus:outline-none"
+              placeholder="What's this about?"
+              className="w-full p-4 bg-gray-800/40 rounded-xl border border-gray-700/50 focus:border-emerald-500/50 outline-none transition-all text-white placeholder:text-gray-500"
             />
           </div>
 
-          {/* Message */}
+          {/* Body */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-300">Message</label>
+            <label className="text-sm text-gray-400">Message</label>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              rows={12}
-              placeholder="Your message here..."
-              className="w-full p-4 bg-gray-900/50 border border-gray-800 rounded-xl focus:border-emerald-500 focus:outline-none resize-none"
+              rows={10}
+              placeholder="Write your secure message..."
+              className="w-full p-4 bg-gray-800/40 rounded-xl border border-gray-700/50 focus:border-emerald-500/50 outline-none transition-all text-white placeholder:text-gray-500 resize-y min-h-[200px]"
             />
           </div>
 
           {/* Attachment */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-300">Attachment (optional)</label>
-            <div className="flex flex-wrap gap-3 items-center">
-              <label className="cursor-pointer flex items-center gap-2 px-4 py-3 rounded-xl bg-gray-900/50 border border-gray-800 hover:border-emerald-500 transition-all">
-                <Paperclip className="w-5 h-5 text-gray-400" />
-                <span>Choose file</span>
-                <input
-                  type="file"
-                  onChange={handleFileChange}
-                  className="hidden"
-                  accept="image/*,.pdf,.txt,.doc,.docx"
-                />
-              </label>
-
-              {file && (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-900/70 border border-gray-700">
-                  {file.type.startsWith('image/') && previewUrl ? (
-                    <img src={previewUrl} alt="preview" className="w-10 h-10 object-cover rounded" />
-                  ) : file.type.includes('pdf') ? (
-                    <FileText className="w-10 h-10 text-red-400" />
-                  ) : (
-                    <ImageIcon className="w-10 h-10 text-gray-400" />
-                  )}
-                  <div>
-                    <span className="text-sm font-medium block truncate max-w-[180px]">{file.name}</span>
-                    <span className="text-xs text-gray-500">{(file.size / 1024).toFixed(1)} KB</span>
-                  </div>
-                  <button onClick={() => setFile(null)} className="p-1 hover:bg-red-900/30 rounded">
-                    <X className="w-4 h-4 text-gray-400" />
-                  </button>
+            <label className="text-sm text-gray-400 flex items-center gap-2">
+              <Paperclip className="w-4 h-4" />
+              Attachment (optional, max 5MB)
+            </label>
+            {!file ? (
+              <label className="flex items-center justify-center w-full h-32 border-2 border-dashed border-gray-700/50 rounded-xl cursor-pointer hover:border-emerald-500/50 transition-all">
+                <input type="file" onChange={handleFileChange} className="hidden" />
+                <div className="text-center text-gray-500">
+                  <Paperclip className="w-6 h-6 mx-auto mb-2" />
+                  <p>Click to upload file</p>
                 </div>
-              )}
-            </div>
+              </label>
+            ) : (
+              <div className="relative">
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Preview" className="max-h-48 rounded-xl" />
+                ) : (
+                  <div className="flex items-center gap-3 p-4 bg-gray-800/40 rounded-xl">
+                    <FileText className="w-6 h-6 text-emerald-400" />
+                    <span>{file.name}</span>
+                  </div>
+                )}
+                <button
+                  onClick={removeAttachment}
+                  className="absolute top-2 right-2 p-1 bg-red-500/20 rounded-full hover:bg-red-500/40"
+                >
+                  <X className="w-4 h-4 text-red-300" />
+                </button>
+              </div>
+            )}
           </div>
 
-          {/* On-chain Proof Toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-gray-900/40 border border-gray-800">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/10">
-                <Send className="w-5 h-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="font-medium text-white">Send ~0.0001 KAS to developer for on-chain proof</p>
-                <p className="text-sm text-gray-400">
-                  (optional – tiny fee, ~$0.001)
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setOnchainProof(!onchainProof)}
-              className="text-3xl transition-colors"
-            >
-              {onchainProof ? (
-                <ToggleRight className="text-blue-500" />
-              ) : (
-                <ToggleLeft className="text-gray-500" />
-              )}
-            </button>
-          </div>
-
-          {/* Security Hint */}
+          {/* Anti-bot Fee Info */}
           <div className="flex items-start gap-3 p-4 rounded-xl bg-gray-900/40 border border-gray-800">
             <Info className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
             <div className="text-sm text-gray-300">
-              <strong>Security requirement:</strong> ≥ 1 KAS balance in wallet (never spent, just anti-spam check).
-              {onchainProof && (
-                <span className="block mt-1 text-blue-300">
-                  When sending, wallet will open for you to confirm the tiny dust transaction.
-                </span>
-              )}
+              <strong>Anti-bot requirement:</strong> A 2 KAS anti-bot fee will be sent to the developer wallet upon sending this email. This is mandatory to prevent spam and bots. The wallet will prompt for confirmation.
+              <span className="block mt-1 text-blue-300">
+                Also requires ≥ 1 KAS balance in wallet (never spent, just anti-spam check).
+              </span>
             </div>
           </div>
 
@@ -359,7 +276,7 @@ export default function Compose() {
               ) : (
                 <>
                   <Send className="w-5 h-5" />
-                  Send KasMail
+                  Send KasMail (with 2 KAS fee)
                 </>
               )}
             </button>

@@ -1,3 +1,4 @@
+// src/lib/types.ts (updated to include onchain_tx for Email)
 export interface Profile {
   id: string
   wallet_address: string
@@ -17,7 +18,7 @@ export interface Email {
   body: string
   created_at: string
   read: boolean
-  content:string
+  content: string
   archived: boolean
-  
+  onchain_tx?: string | null  // Added for anti-bot fee txId
 }

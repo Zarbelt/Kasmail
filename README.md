@@ -130,3 +130,5 @@ ALTER TABLE profiles
 
 The design is updated by Ai , since i am not much of a design guy myself , so feel free to play with the design with Ai 
   You can update your logo if you want , we will bbe using the custom Vite logo. 
+
+  feel free to take away the 2 kas anti bot fee if you want.
