@@ -11,5 +11,14 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    proxy: {
+      // Proxy requests to /api/* to your Supabase Edge Function
+      '/api': {
+        target: 'https://gtblmmefwrwshklnonct.supabase.co/functions/v1',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: false,
+      },
+    },
   },
 })

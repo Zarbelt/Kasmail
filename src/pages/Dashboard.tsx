@@ -3,10 +3,10 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { getCurrentKaswareAddress, hasMinimumKAS } from '../lib/kaspa'
-import type { Email } from '../lib/types'
+import type { Email, Profile } from '../lib/types'
 import { 
   Search, Filter, Mail, Clock, User, ArrowUpDown, RefreshCw, 
-  Shield, Zap, Inbox, Send, Trash2, Star, Archive 
+  Shield, Zap, Inbox, Send, Trash2, Star, Archive, AlertTriangle 
 } from 'lucide-react'
 
 export default function Dashboard() {
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [sortAsc, setSortAsc] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<'inbox' | 'sent' | 'all'>('inbox')
+  const [profile, setProfile] = useState<Profile | null>(null) // For only_internal toggle
 
   const loadData = async (showLoading = true) => {
     if (showLoading) setRefreshing(true)
@@ -41,6 +42,15 @@ export default function Dashboard() {
     }
 
     try {
+      // Load user profile (to check only_internal setting)
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('only_internal')
+        .eq('wallet_address', addr)
+        .single()
+      setProfile(profileData as Profile)
+
+      // Load all relevant emails
       const { data, error } = await supabase
         .from('emails')
         .select('*')
@@ -77,6 +87,12 @@ export default function Dashboard() {
   const filteredEmails = useMemo(() => {
     let result = emails
 
+    // Respect user's only_internal setting: hide external emails if enabled
+    const onlyInternal = profile?.only_internal ?? true
+    if (onlyInternal) {
+      result = result.filter(e => !e.from_wallet.startsWith('external:'))
+    }
+
     // Tab filtering
     switch (activeTab) {
       case 'inbox':
@@ -85,28 +101,26 @@ export default function Dashboard() {
       case 'sent':
         result = result.filter(e => e.from_wallet === currentAddress)
         break
-      case 'all':
-        break
+      // 'all' shows everything (after only_internal filter)
     }
 
-    // Unread filter
+    // Unread only
     if (showUnreadOnly) {
       result = result.filter(e => !e.read && e.to_wallet === currentAddress)
     }
 
-    // Search filter
+    // Search
     if (searchTerm.trim()) {
       const term = searchTerm.toLowerCase()
-      result = result.filter(
-        (e) =>
-          (e.subject ?? '').toLowerCase().includes(term) ||
-          (e.body ?? '').toLowerCase().includes(term) ||
-          e.from_wallet.toLowerCase().includes(term) ||
-          e.to_wallet.toLowerCase().includes(term)
+      result = result.filter(e => 
+        (e.subject ?? '').toLowerCase().includes(term) ||
+        (e.body ?? '').toLowerCase().includes(term) ||
+        e.from_wallet.toLowerCase().includes(term) ||
+        e.to_wallet.toLowerCase().includes(term)
       )
     }
 
-    // Sorting (create copy to avoid mutating original array)
+    // Sorting
     result = [...result].sort((a, b) => {
       let comparison = 0
       if (sortBy === 'date') {
@@ -118,7 +132,7 @@ export default function Dashboard() {
     })
 
     return result
-  }, [emails, searchTerm, showUnreadOnly, currentAddress, sortBy, sortAsc, activeTab])
+  }, [emails, searchTerm, showUnreadOnly, currentAddress, sortBy, sortAsc, activeTab, profile])
 
   const stats = useMemo(() => {
     const inbox = emails.filter(e => e.to_wallet === currentAddress)
@@ -155,8 +169,6 @@ export default function Dashboard() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Remove the fixed background divs since AppLayout already provides them */}
-      
       {/* ── Top Bar (Header) ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-10 border-b border-gray-800/50 bg-gray-900/30 backdrop-blur-xl p-4 lg:p-6">
         <div className="max-w-full">
@@ -296,7 +308,7 @@ export default function Dashboard() {
           {error && (
             <div className="p-6 rounded-2xl bg-red-950/30 border border-red-900/50 backdrop-blur-xl mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                <AlertTriangle className="w-5 h-5 text-red-400" />
                 <p className="text-red-200 font-medium">{error}</p>
               </div>
             </div>
@@ -358,7 +370,12 @@ export default function Dashboard() {
               {filteredEmails.map((email) => {
                 const isIncoming = email.to_wallet === currentAddress
                 const isUnread = isIncoming && !email.read
-                
+                const isExternal = email.from_wallet.startsWith('external:')
+
+                const senderDisplay = isExternal
+                  ? email.from_wallet.replace('external:', '')
+                  : email.from_wallet.slice(0, 10) + '...' + email.from_wallet.slice(-8)
+
                 return (
                   <div
                     key={email.id}
@@ -386,16 +403,18 @@ export default function Dashboard() {
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-wrap">
                             <span className={`font-semibold truncate ${isUnread ? 'text-white' : 'text-gray-300'}`}>
-                              {isIncoming 
-                                ? `${email.from_wallet.slice(0, 10)}...${email.from_wallet.slice(-8)}`
-                                : `To: ${email.to_wallet.slice(0, 10)}...${email.to_wallet.slice(-8)}`
-                              }
+                              {isIncoming ? senderDisplay : `To: ${email.to_wallet.slice(0, 10)}...${email.to_wallet.slice(-8)}`}
                             </span>
                             {isUnread && (
                               <span className="px-2 py-0.5 text-xs bg-emerald-500 text-white rounded-full font-medium">
                                 UNREAD
+                              </span>
+                            )}
+                            {isExternal && (
+                              <span className="px-2 py-0.5 text-xs bg-purple-600/80 text-white rounded-full font-medium">
+                                EXTERNAL
                               </span>
                             )}
                           </div>

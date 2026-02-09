@@ -13,6 +13,7 @@ export function useEmails(filter: FilterType = 'all') {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentAddress, setCurrentAddress] = useState<string | null>(null)
+  const [onlyInternal, setOnlyInternal] = useState<boolean | null>(null) // New: user's setting
 
   const loadEmails = async () => {
     setLoading(true)
@@ -33,28 +34,43 @@ export function useEmails(filter: FilterType = 'all') {
     }
 
     try {
+      // Load user's only_internal preference (once)
+      if (onlyInternal === null) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('only_internal')
+          .eq('wallet_address', addr)
+          .single()
+
+        setOnlyInternal(profile?.only_internal ?? true) // default true if missing
+      }
+
       let query = supabase
         .from('emails')
         .select('*')
         .order('created_at', { ascending: false })
 
-      // Apply filter
+      // Apply tab filter
       if (filter === 'inbox') {
         query = query.eq('to_wallet', addr)
       } else if (filter === 'sent') {
         query = query.eq('from_wallet', addr)
       } else if (filter === 'trash') {
-        // Assuming future 'status' column - for now same as all
-        // query = query.eq('status', 'trash')
+        // Future: add .eq('archived', true) or status filter
       } else if (filter === 'junk') {
-        // Future spam filter
-        // query = query.eq('status', 'junk')
+        // Future: spam detection
       }
 
       const { data, error } = await query
       if (error) throw error
 
-      setEmails(data || [])
+      // Apply only_internal filter client-side
+      let filtered = data || []
+      if (onlyInternal === true) {
+        filtered = filtered.filter(e => !e.from_wallet.startsWith('external:'))
+      }
+
+      setEmails(filtered)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages')
     } finally {
@@ -75,7 +91,13 @@ export function useEmails(filter: FilterType = 'all') {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [filter, navigate])
+  }, [filter, navigate, onlyInternal]) // Re-run when onlyInternal changes
 
-  return { emails, loading, error, currentAddress, refresh: loadEmails }
+  return { 
+    emails, 
+    loading, 
+    error, 
+    currentAddress, 
+    refresh: loadEmails 
+  }
 }
