@@ -6,7 +6,7 @@ import { getCurrentKaswareAddress, hasMinimumKAS, sendAntiBotFee } from '../lib/
 import { Send, ArrowLeft, Paperclip, Info, X, Image as _ImageIcon, Loader2 } from 'lucide-react'
 import type { Profile } from '../lib/types'
 
-const EMAIL_DOMAIN = '@kasmail.modmedianetwork.com'
+const EMAIL_DOMAIN = '@kasmail.org'
 // Use proxy in development, direct URL in production
 const EDGE_SEND_URL = import.meta.env.DEV 
   ? '/api/rapid-worker'

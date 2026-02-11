@@ -5,7 +5,7 @@ import { Trash2 } from 'lucide-react'
 
 export default function Trash() {
   const navigate = useNavigate()
-  // For now, show all (until you add 'status' column)
+  // For now, show all (until i add 'status' column)
   // Later: useEmails('trash')
   const { emails, loading, error, currentAddress } = useEmails('all')
   if (loading) {
