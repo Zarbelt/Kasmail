@@ -4,19 +4,17 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { getCurrentKaswareAddress } from '../lib/kaspa'
 import type { Email, Profile } from '../lib/types'
-import { 
-  ArrowLeft, 
-  Clock, 
-  Mail, 
-  User, 
-  Shield, 
-  CheckCircle, 
-  Copy, 
+import {
+  ArrowLeft,
+  Clock,
+  Mail,
+  User,
+  Shield,
+  CheckCircle,
+  Copy,
   ExternalLink,
-  
   Archive,
   Trash2,
- 
   ChevronDown,
   ChevronUp,
   Hash,
@@ -24,7 +22,8 @@ import {
   AlertTriangle,
   Zap,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  Globe,
 } from 'lucide-react'
 
 export default function EmailView() {
@@ -35,8 +34,7 @@ export default function EmailView() {
   const [currentAddress, setCurrentAddress] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [
-    _copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState(false)
   const [expandedHeaders, setExpandedHeaders] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -55,7 +53,6 @@ export default function EmailView() {
         }
         setCurrentAddress(addr)
 
-        // Fetch email
         const { data: emailData, error: emailError } = await supabase
           .from('emails')
           .select('*')
@@ -80,26 +77,21 @@ export default function EmailView() {
 
         // Mark as read if recipient
         if (emailData.to_wallet === addr && !emailData.read) {
-          await supabase
-            .from('emails')
-            .update({ read: true })
-            .eq('id', id)
+          await supabase.from('emails').update({ read: true }).eq('id', id)
         }
 
-        // Check if external (from real email via ImprovMX)
-        const isExternal = emailData.from_wallet.startsWith('external:')
+        const isExternalSender = emailData.from_wallet.startsWith('external:')
 
-        // Only fetch sender profile if it's an internal KasMail user
-        if (!isExternal) {
+        // Only fetch sender profile for internal KasMail users
+        if (!isExternalSender) {
           const { data: profileData } = await supabase
             .from('profiles')
             .select('*')
             .eq('wallet_address', emailData.from_wallet)
             .single()
 
-          setSenderProfile(profileData as Profile || null)
+          setSenderProfile((profileData as Profile) || null)
         }
-
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load email')
       } finally {
@@ -137,39 +129,39 @@ export default function EmailView() {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
       })
     }
   }
 
   const handleDelete = async () => {
     if (!email) return
-    
+
     try {
-      const { error } = await supabase
+      const { error: deleteError } = await supabase
         .from('emails')
         .delete()
         .eq('id', email.id)
 
-      if (error) throw error
+      if (deleteError) throw deleteError
       navigate('/inbox')
-    } catch  {
+    } catch {
       setError('Failed to delete email')
     }
   }
 
   const handleArchive = async () => {
     if (!email) return
-    
+
     try {
-      const { error } = await supabase
+      const { error: archiveError } = await supabase
         .from('emails')
         .update({ archived: true })
         .eq('id', email.id)
 
-      if (error) throw error
-      setEmail(prev => prev ? { ...prev, archived: true } : null)
-    } catch  {
+      if (archiveError) throw archiveError
+      setEmail((prev) => (prev ? { ...prev, archived: true } : null))
+    } catch {
       setError('Failed to archive email')
     }
   }
@@ -178,11 +170,11 @@ export default function EmailView() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mx-auto mb-6"></div>
-          <div className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+          <div className="w-14 h-14 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin mx-auto mb-5" />
+          <div className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
             Loading Message
           </div>
-          <p className="text-gray-500 mt-2">Decrypting KasMail...</p>
+          <p className="text-gray-500 mt-2 text-sm">Decrypting KasMail...</p>
         </div>
       </div>
     )
@@ -191,17 +183,17 @@ export default function EmailView() {
   if (error || !email) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black flex flex-col items-center justify-center p-6">
-        <div className="max-w-md w-full bg-red-950/30 border border-red-800/50 rounded-2xl p-8 backdrop-blur-xl">
+        <div className="max-w-md w-full bg-red-950/20 border border-red-800/40 rounded-2xl p-8">
           <div className="flex items-center gap-3 mb-4">
-            <AlertTriangle className="w-8 h-8 text-red-400" />
-            <h2 className="text-2xl font-bold text-white">Error</h2>
+            <AlertTriangle className="w-6 h-6 text-red-400" />
+            <h2 className="text-xl font-bold text-white">Error</h2>
           </div>
-          <p className="text-red-200 mb-6">{error || 'Email not found'}</p>
+          <p className="text-red-300 text-sm mb-6">{error || 'Email not found'}</p>
           <button
             onClick={() => navigate('/inbox')}
-            className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
             Back to Inbox
           </button>
         </div>
@@ -209,57 +201,71 @@ export default function EmailView() {
     )
   }
 
-  const isExternal = email.from_wallet.startsWith('external:')
-  const displayFrom = senderProfile?.username || 
-                     (isExternal 
-                       ? email.from_wallet.replace('external:', '') 
-                       : `${email.from_wallet.slice(0, 12)}...${email.from_wallet.slice(-8)}`)
-  
-  const displayTo = currentAddress === email.to_wallet 
-    ? 'You' 
+  const isExternalFrom = email.from_wallet.startsWith('external:')
+  const isExternalTo = email.to_wallet.startsWith('external:')
+  const isExternal = isExternalFrom || isExternalTo
+
+  const displayFrom =
+    senderProfile?.username ||
+    (isExternalFrom
+      ? email.from_wallet.replace('external:', '')
+      : `${email.from_wallet.slice(0, 12)}...${email.from_wallet.slice(-8)}`)
+
+  const displayTo = isExternalTo
+    ? email.to_wallet.replace('external:', '')
+    : currentAddress === email.to_wallet
+    ? 'You'
     : `${email.to_wallet.slice(0, 12)}...${email.to_wallet.slice(-8)}`
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black">
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Back Button */}
           <div className="mb-6">
             <button
               onClick={() => navigate('/inbox')}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-900/50 border border-gray-800 hover:border-gray-700 hover:bg-gray-800/50 transition-all"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-lg bg-gray-900/40 border border-gray-800/50 hover:border-gray-700 transition-all text-sm"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
               <span>Back to Inbox</span>
             </button>
           </div>
 
           {/* Email Card */}
-          <div className="bg-gradient-to-br from-gray-900/40 to-black/40 rounded-2xl border border-gray-800/50 backdrop-blur-xl overflow-hidden">
+          <div className="bg-gradient-to-br from-gray-900/30 to-black/30 rounded-2xl border border-gray-800/40 overflow-hidden">
             {/* Header with Subject */}
-            <div className="p-6 lg:p-8 border-b border-gray-800/50">
-              <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="p-6 lg:p-8 border-b border-gray-800/40">
+              <div className="flex items-start justify-between gap-4 mb-5">
                 <div className="flex-1">
-                  <h1 className="text-2xl lg:text-3xl font-bold text-white mb-3">
-                    {email.subject}
+                  <h1 className="text-xl lg:text-2xl font-bold text-white mb-3">
+                    {email.subject || '(No subject)'}
                   </h1>
-                  
+
                   {/* Metadata Row */}
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-cyan-400" />
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-cyan-400" />
                       <span>{formatDate(email.created_at)}</span>
                     </div>
-                    <span className="text-gray-600">•</span>
-                    <div className="flex items-center gap-2">
-                      <Hash className="w-4 h-4 text-gray-500" />
-                      <span className="font-mono text-xs">ID: {email.id.slice(0, 8)}</span>
+                    <span className="text-gray-700">&middot;</span>
+                    <div className="flex items-center gap-1.5">
+                      <Hash className="w-3.5 h-3.5 text-gray-600" />
+                      <span className="font-mono">ID: {email.id.slice(0, 8)}</span>
                     </div>
+                    {isExternal && (
+                      <>
+                        <span className="text-gray-700">&middot;</span>
+                        <span className="px-1.5 py-0.5 text-[10px] bg-purple-500/70 text-white rounded-full font-bold">
+                          EXTERNAL
+                        </span>
+                      </>
+                    )}
                     {email.read && (
                       <>
-                        <span className="text-gray-600">•</span>
-                        <div className="flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4 text-emerald-400" />
+                        <span className="text-gray-700">&middot;</span>
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
                           <span className="text-emerald-400">Read</span>
                         </div>
                       </>
@@ -267,85 +273,90 @@ export default function EmailView() {
                   </div>
                 </div>
 
-                {/* Actions Dropdown */}
-                <button 
+                <button
                   onClick={() => setExpandedHeaders(!expandedHeaders)}
-                  className="p-2 rounded-lg bg-gray-800/50 border border-gray-700 hover:border-gray-600 transition-all"
+                  className="p-2 rounded-lg bg-gray-800/40 border border-gray-700/50 hover:border-gray-600 transition-all"
                 >
                   {expandedHeaders ? (
-                    <ChevronUp className="w-5 h-5" />
+                    <ChevronUp className="w-4 h-4" />
                   ) : (
-                    <ChevronDown className="w-5 h-5" />
+                    <ChevronDown className="w-4 h-4" />
                   )}
                 </button>
               </div>
 
               {/* Sender/Recipient Info */}
-              <div className={`space-y-6 ${expandedHeaders ? 'block' : 'hidden'}`}>
+              <div className={`space-y-5 ${expandedHeaders ? 'block' : 'hidden'}`}>
                 {/* From */}
-                <div className="group">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                      <User className="w-5 h-5 text-emerald-400" />
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/15">
+                      {isExternalFrom ? (
+                        <Globe className="w-4 h-4 text-purple-400" />
+                      ) : (
+                        <User className="w-4 h-4 text-emerald-400" />
+                      )}
                     </div>
                     <div>
-                      <p className="text-sm text-gray-400 uppercase tracking-wider">From</p>
-                      <p className="text-lg font-semibold text-white truncate">{displayFrom}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">From</p>
+                      <p className="text-sm font-semibold text-white truncate">{displayFrom}</p>
                     </div>
                   </div>
-                  {!isExternal && (
-                    <div className="flex items-center gap-2 text-sm">
+                  {!isExternalFrom && (
+                    <div className="flex items-center gap-2 text-xs ml-9">
                       <button
                         onClick={() => copyToClipboard(email.from_wallet)}
-                        className="flex items-center gap-1 text-gray-400 hover:text-cyan-400 transition-colors"
+                        className="flex items-center gap-1 text-gray-500 hover:text-cyan-400 transition-colors"
                       >
                         <Copy className="w-3 h-3" />
-                        <span>Copy address</span>
+                        <span>{copied ? 'Copied!' : 'Copy address'}</span>
                       </button>
-                      <span className="text-gray-600">•</span>
-                      <span className="text-gray-500">{email.from_wallet}</span>
                     </div>
                   )}
                 </div>
 
                 {/* To */}
-                <div className="group">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                      <Mail className="w-5 h-5 text-cyan-400" />
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/15">
+                      {isExternalTo ? (
+                        <Globe className="w-4 h-4 text-purple-400" />
+                      ) : (
+                        <Mail className="w-4 h-4 text-cyan-400" />
+                      )}
                     </div>
                     <div>
-                      <p className="text-sm text-gray-400 uppercase tracking-wider">To</p>
-                      <p className="text-lg font-semibold text-white truncate">{displayTo}</p>
+                      <p className="text-[10px] text-gray-500 uppercase tracking-wider">To</p>
+                      <p className="text-sm font-semibold text-white truncate">{displayTo}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <button
-                      onClick={() => copyToClipboard(email.to_wallet)}
-                      className="flex items-center gap-1 text-gray-400 hover:text-cyan-400 transition-colors"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>Copy address</span>
-                    </button>
-                    <span className="text-gray-600">•</span>
-                    <span className="text-gray-500">{email.to_wallet}</span>
-                  </div>
+                  {!isExternalTo && (
+                    <div className="flex items-center gap-2 text-xs ml-9">
+                      <button
+                        onClick={() => copyToClipboard(email.to_wallet)}
+                        className="flex items-center gap-1 text-gray-500 hover:text-cyan-400 transition-colors"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Copy address</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
 
               {/* Security Badges */}
-              <div className="flex flex-wrap items-center gap-4 mt-8 pt-6 border-t border-gray-800/50">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  <Shield className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-medium text-emerald-300">End-to-End Encrypted</span>
+              <div className="flex flex-wrap items-center gap-3 mt-6 pt-5 border-t border-gray-800/40">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/15">
+                  <Shield className="w-3 h-3 text-emerald-400" />
+                  <span className="text-[10px] font-medium text-emerald-300">Encrypted</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-cyan-500/10 border border-cyan-500/20">
-                  <Lock className="w-4 h-4 text-cyan-400" />
-                  <span className="text-sm font-medium text-cyan-300">Immutable Storage</span>
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/15">
+                  <Lock className="w-3 h-3 text-cyan-400" />
+                  <span className="text-[10px] font-medium text-cyan-300">Immutable</span>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20">
-                  <Calendar className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm font-medium text-blue-300">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/15">
+                  <Calendar className="w-3 h-3 text-blue-400" />
+                  <span className="text-[10px] font-medium text-blue-300">
                     {new Date(email.created_at).toLocaleDateString()}
                   </span>
                 </div>
@@ -354,28 +365,26 @@ export default function EmailView() {
 
             {/* Email Body */}
             <div className="p-6 lg:p-8">
-              <div className="prose prose-invert prose-lg max-w-none">
-                <div className="whitespace-pre-wrap leading-relaxed text-gray-200">
-                  {email.body}
-                </div>
+              <div className="whitespace-pre-wrap leading-relaxed text-gray-200 text-sm">
+                {email.body}
               </div>
 
               {/* Reply Section */}
-              <div className="mt-8 pt-8 border-t border-gray-800/50">
+              <div className="mt-8 pt-6 border-t border-gray-800/40">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-gray-800/50 border border-gray-700/50">
-                      <MessageSquare className="w-5 h-5 text-gray-400" />
+                    <div className="p-2 rounded-lg bg-gray-800/40 border border-gray-700/40">
+                      <MessageSquare className="w-4 h-4 text-gray-400" />
                     </div>
                     <div>
-                      <p className="font-medium">Ready to reply?</p>
-                      <p className="text-sm text-gray-400">Continue the conversation instantly</p>
+                      <p className="font-medium text-sm">Ready to reply?</p>
+                      <p className="text-xs text-gray-500">Continue the conversation</p>
                     </div>
                   </div>
-                  
+
                   <button
                     onClick={() => navigate(`/compose?reply=${email.id}`)}
-                    className="px-8 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl font-semibold transition-all transform hover:scale-[1.02] shadow-lg shadow-emerald-500/25"
+                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 rounded-xl font-semibold text-sm transition-all hover:scale-[1.02] shadow-lg shadow-emerald-500/20"
                   >
                     Reply to Message
                   </button>
@@ -384,22 +393,22 @@ export default function EmailView() {
             </div>
 
             {/* Footer Actions */}
-            <div className="p-6 lg:p-8 border-t border-gray-800/50 bg-gray-900/20">
+            <div className="p-5 lg:px-8 border-t border-gray-800/40 bg-gray-900/15">
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-sm text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-emerald-400" />
-                    <span>Sent via Kaspa Network • 1 KAS fee</span>
-                  </div>
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <Zap className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>
+                    {isExternal ? 'Sent via external relay' : 'Sent via Kaspa Network'}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleArchive}
                     disabled={email.archived}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-900/50 border border-gray-800 hover:border-gray-700 hover:bg-gray-800/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-gray-900/40 border border-gray-800/50 hover:border-gray-700 text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    <Archive className="w-4 h-4" />
+                    <Archive className="w-3.5 h-3.5" />
                     <span>{email.archived ? 'Archived' : 'Archive'}</span>
                   </button>
 
@@ -407,24 +416,24 @@ export default function EmailView() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => setConfirmDelete(false)}
-                        className="px-4 py-2.5 rounded-xl border border-gray-800 hover:border-gray-700 transition-all"
+                        className="px-3 py-2 rounded-lg border border-gray-800/50 hover:border-gray-700 text-xs transition-all"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={handleDelete}
-                        className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/20 border border-red-500/30 hover:border-red-500/50 hover:bg-red-500/30 text-red-300 transition-all"
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/15 border border-red-500/25 hover:border-red-500/40 text-red-300 text-xs transition-all"
                       >
-                        <Trash2 className="w-4 h-4" />
-                        <span>Confirm Delete</span>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Confirm</span>
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => setConfirmDelete(true)}
-                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/20 hover:border-red-500/30 hover:bg-red-500/20 text-red-400 transition-all"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/15 hover:border-red-500/25 text-red-400 text-xs transition-all"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                       <span>Delete</span>
                     </button>
                   )}
@@ -434,45 +443,50 @@ export default function EmailView() {
           </div>
 
           {/* Related Actions */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
             <Link
               to="/inbox"
-              className="p-6 rounded-2xl bg-gray-900/30 border border-gray-800/50 hover:border-gray-700/50 hover:bg-gray-800/30 transition-all group"
+              className="p-5 rounded-xl bg-gray-900/20 border border-gray-800/40 hover:border-gray-700/40 transition-all group"
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                  <Mail className="w-5 h-5 text-cyan-400" />
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/15">
+                  <Mail className="w-4 h-4 text-cyan-400" />
                 </div>
-                <h3 className="font-semibold text-white">Back to Inbox</h3>
+                <h3 className="font-semibold text-sm text-white">Back to Inbox</h3>
               </div>
-              <p className="text-sm text-gray-400">Return to your messages</p>
+              <p className="text-xs text-gray-500">Return to your messages</p>
             </Link>
 
             <button
               onClick={() => navigate('/compose')}
-              className="p-6 rounded-2xl bg-gray-900/30 border border-gray-800/50 hover:border-emerald-700/50 hover:bg-emerald-900/10 transition-all group text-left"
+              className="p-5 rounded-xl bg-gray-900/20 border border-gray-800/40 hover:border-emerald-700/40 transition-all group text-left"
             >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <Mail className="w-5 h-5 text-emerald-400" />
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/15">
+                  <Mail className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-semibold text-white">New Message</h3>
+                <h3 className="font-semibold text-sm text-white">New Message</h3>
               </div>
-              <p className="text-sm text-gray-400">Compose a new KasMail</p>
+              <p className="text-xs text-gray-500">Compose a new KasMail</p>
             </button>
 
             {!isExternal && (
               <button
-                onClick={() => window.open(`https://explorer.kaspa.org/addresses/${email.from_wallet}`, '_blank')}
-                className="p-6 rounded-2xl bg-gray-900/30 border border-gray-800/50 hover:border-blue-700/50 hover:bg-blue-900/10 transition-all group text-left"
+                onClick={() =>
+                  window.open(
+                    `https://explorer.kaspa.org/addresses/${email.from_wallet}`,
+                    '_blank'
+                  )
+                }
+                className="p-5 rounded-xl bg-gray-900/20 border border-gray-800/40 hover:border-blue-700/40 transition-all group text-left"
               >
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <ExternalLink className="w-5 h-5 text-blue-400" />
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="p-1.5 rounded-lg bg-blue-500/10 border border-blue-500/15">
+                    <ExternalLink className="w-4 h-4 text-blue-400" />
                   </div>
-                  <h3 className="font-semibold text-white">View on Explorer</h3>
+                  <h3 className="font-semibold text-sm text-white">View on Explorer</h3>
                 </div>
-                <p className="text-sm text-gray-400">See transaction details</p>
+                <p className="text-xs text-gray-500">See transaction details</p>
               </button>
             )}
           </div>

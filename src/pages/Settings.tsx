@@ -4,14 +4,14 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { getCurrentKaswareAddress, hasMinimumKAS } from '../lib/kaspa'
 import type { Profile } from '../lib/types'
-import { 
-  ArrowLeft, 
+import {
+  ArrowLeft,
   ToggleRight,
   ToggleLeft,
-  CheckCircle, 
-  User, 
-  Shield, 
-  Eye, 
+  CheckCircle,
+  User,
+  Shield,
+  Eye,
   EyeOff,
   Lock,
   Zap,
@@ -23,7 +23,7 @@ import {
   ChevronRight,
   Copy,
   Check,
-  AtSign
+  AtSign,
 } from 'lucide-react'
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/
@@ -62,7 +62,7 @@ export default function Settings() {
 
     for (const suggestion of variations) {
       if (!USERNAME_REGEX.test(suggestion)) continue
-      
+
       const { data } = await supabase
         .from('profiles')
         .select('username')
@@ -95,14 +95,14 @@ export default function Settings() {
         return
       }
 
-      const { data, error } = await supabase
+      const { data, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
         .eq('wallet_address', addr)
         .single()
 
-      if (error && error.code !== 'PGRST116') {
-        setError(error.message)
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        setError(fetchError.message)
       } else if (data) {
         setProfile(data as Profile)
         setUsernameInput(data.username || '')
@@ -129,28 +129,27 @@ export default function Settings() {
       setUsernameError(null)
       setSuggestions([])
 
-      const { data, error } = await supabase
+      const { data, error: checkError } = await supabase
         .from('profiles')
         .select('username')
         .eq('username', usernameInput)
         .neq('wallet_address', profile?.wallet_address || '')
         .maybeSingle()
 
-      if (error) {
+      if (checkError) {
         setUsernameError('Error checking availability')
         setIsAvailable(null)
       } else if (data) {
         setIsAvailable(false)
         setUsernameError(`Username "${usernameInput}" is already taken`)
-        
-        // Generate suggestions
+
         const suggestedUsernames = await generateSuggestions(usernameInput)
         setSuggestions(suggestedUsernames)
       } else {
         setIsAvailable(true)
         setUsernameError(null)
       }
-      
+
       setChecking(false)
     }
 
@@ -181,7 +180,7 @@ export default function Settings() {
       return
     }
 
-    const { error } = await supabase
+    const { error: saveError } = await supabase
       .from('profiles')
       .upsert(
         {
@@ -194,8 +193,8 @@ export default function Settings() {
         { onConflict: 'wallet_address' }
       )
 
-    if (error) {
-      setUsernameError(error.message)
+    if (saveError) {
+      setUsernameError(saveError.message)
     } else {
       setProfile((prev) =>
         prev
@@ -232,8 +231,8 @@ export default function Settings() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-950 to-black">
         <div className="flex items-center gap-3">
-          <RefreshCw className="w-6 h-6 text-cyan-400 animate-spin" />
-          <p className="text-cyan-300 text-lg">Loading settings...</p>
+          <RefreshCw className="w-5 h-5 text-cyan-400 animate-spin" />
+          <p className="text-cyan-300 text-sm">Loading settings...</p>
         </div>
       </div>
     )
@@ -242,17 +241,17 @@ export default function Settings() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-950 to-black p-4">
-        <div className="max-w-md w-full bg-red-950/30 border border-red-800/50 rounded-2xl p-8 backdrop-blur-xl">
+        <div className="max-w-md w-full bg-red-950/20 border border-red-800/40 rounded-2xl p-8">
           <div className="flex items-center gap-3 mb-4">
-            <AlertCircle className="w-8 h-8 text-red-400" />
-            <h2 className="text-2xl font-bold text-white">Access Denied</h2>
+            <AlertCircle className="w-6 h-6 text-red-400" />
+            <h2 className="text-xl font-bold text-white">Access Denied</h2>
           </div>
-          <p className="text-red-200 mb-6">{error}</p>
+          <p className="text-red-300 text-sm mb-6">{error}</p>
           <button
             onClick={() => navigate('/')}
-            className="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full py-2.5 px-4 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2 text-sm"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
             Return to Login
           </button>
         </div>
@@ -263,28 +262,28 @@ export default function Settings() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black">
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-3 mb-4">
               <button
                 onClick={() => navigate('/inbox')}
-                className="p-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 hover:border-gray-600 transition-all"
+                className="p-2 rounded-lg bg-gray-800/40 hover:bg-gray-700/40 border border-gray-700/50 hover:border-gray-600 transition-all"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
               </button>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
                   Settings
                 </h1>
-                <p className="text-gray-400 mt-1">Manage your KasMail account preferences</p>
+                <p className="text-gray-500 text-xs mt-0.5">Manage your KasMail account</p>
               </div>
             </div>
 
             {saveSuccess && (
-              <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 animate-pulse-once">
-                <CheckCircle className="w-5 h-5 text-emerald-400" />
-                <p className="text-emerald-300 font-medium">Settings saved successfully!</p>
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                <p className="text-emerald-300 text-sm font-medium">Settings saved!</p>
               </div>
             )}
           </div>
@@ -294,21 +293,21 @@ export default function Settings() {
             {/* Left Column - Main Settings */}
             <div className="lg:col-span-2 space-y-6">
               {/* Username Card */}
-              <div className="bg-gradient-to-br from-gray-900/40 to-black/40 rounded-2xl border border-gray-800/50 backdrop-blur-xl p-6 lg:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                    <User className="w-6 h-6 text-cyan-400" />
+              <div className="bg-gradient-to-br from-gray-900/30 to-black/30 rounded-2xl border border-gray-800/40 p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/15">
+                    <User className="w-5 h-5 text-cyan-400" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">KasMail Email Address</h2>
-                    <p className="text-sm text-gray-400">Choose your unique email identifier</p>
+                    <h2 className="text-lg font-bold text-white">KasMail Email Address</h2>
+                    <p className="text-xs text-gray-500">Choose your unique email identifier</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   {/* Username Input */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                    <label className="block text-xs font-medium text-gray-400 mb-1.5">
                       Your Username
                     </label>
                     <div className="relative">
@@ -317,51 +316,51 @@ export default function Settings() {
                         value={usernameInput}
                         onChange={(e) => setUsernameInput(e.target.value.toLowerCase())}
                         placeholder="username"
-                        className="w-full px-4 py-3 bg-gray-900/50 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all"
+                        className="w-full px-4 py-2.5 bg-gray-900/40 border border-gray-700/50 rounded-xl text-white text-sm placeholder-gray-600 focus:outline-none focus:ring-1 focus:ring-cyan-500/40 focus:border-cyan-500/40 transition-all"
                       />
                       {checking && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                          <RefreshCw className="w-5 h-5 text-cyan-400 animate-spin" />
+                          <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin" />
                         </div>
                       )}
                       {!checking && usernameInput && USERNAME_REGEX.test(usernameInput) && (
                         <div className="absolute right-3 top-1/2 -translate-y-1/2">
                           {isAvailable ? (
-                            <CheckCircle className="w-5 h-5 text-emerald-400" />
+                            <CheckCircle className="w-4 h-4 text-emerald-400" />
                           ) : (
-                            <AlertCircle className="w-5 h-5 text-red-400" />
+                            <AlertCircle className="w-4 h-4 text-red-400" />
                           )}
                         </div>
                       )}
                     </div>
 
                     {usernameError && (
-                      <p className="mt-2 text-sm text-red-400 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4" />
+                      <p className="mt-1.5 text-xs text-red-400 flex items-center gap-1.5">
+                        <AlertCircle className="w-3 h-3" />
                         {usernameError}
                       </p>
                     )}
 
                     {!usernameError && usernameInput && (
-                      <p className="mt-2 text-sm text-gray-400">
-                        3-20 characters • Letters, numbers, underscores
+                      <p className="mt-1.5 text-[10px] text-gray-500">
+                        3-20 characters &middot; Letters, numbers, underscores
                       </p>
                     )}
                   </div>
 
                   {/* Suggestions */}
                   {suggestions.length > 0 && (
-                    <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
-                      <p className="text-sm font-medium text-blue-300 mb-3 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4" />
-                        Try these available alternatives:
+                    <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/15">
+                      <p className="text-xs font-medium text-blue-300 mb-2 flex items-center gap-1.5">
+                        <AlertCircle className="w-3 h-3" />
+                        Try these alternatives:
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {suggestions.map((suggestion) => (
                           <button
                             key={suggestion}
                             onClick={() => applySuggestion(suggestion)}
-                            className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 hover:border-blue-500/50 rounded-lg text-blue-200 text-sm font-medium transition-all"
+                            className="px-3 py-1.5 bg-blue-500/15 hover:bg-blue-500/25 border border-blue-500/25 hover:border-blue-500/40 rounded-lg text-blue-200 text-xs font-medium transition-all"
                           >
                             {suggestion}
                           </button>
@@ -372,30 +371,30 @@ export default function Settings() {
 
                   {/* Full Email Display */}
                   {usernameInput && USERNAME_REGEX.test(usernameInput) && isAvailable && (
-                    <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/20">
-                      <div className="flex items-center justify-between gap-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border border-emerald-500/15">
+                      <div className="flex items-center justify-between gap-3">
                         <div className="flex-1">
-                          <p className="text-sm text-emerald-300 mb-1 flex items-center gap-2">
-                            <AtSign className="w-4 h-4" />
+                          <p className="text-xs text-emerald-300 mb-0.5 flex items-center gap-1.5">
+                            <AtSign className="w-3 h-3" />
                             Your KasMail Email Address
                           </p>
-                          <p className="text-lg font-mono text-white break-all">
+                          <p className="text-sm font-mono text-white break-all">
                             {getFullEmail(usernameInput)}
                           </p>
                         </div>
                         <button
                           onClick={copyFullEmail}
-                          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 hover:border-emerald-500/50 transition-all shrink-0"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/20 hover:border-emerald-500/40 transition-all shrink-0"
                         >
                           {copied ? (
                             <>
-                              <Check className="w-4 h-4 text-emerald-300" />
-                              <span className="text-sm text-emerald-300">Copied!</span>
+                              <Check className="w-3.5 h-3.5 text-emerald-300" />
+                              <span className="text-xs text-emerald-300">Copied!</span>
                             </>
                           ) : (
                             <>
-                              <Copy className="w-4 h-4 text-emerald-300" />
-                              <span className="text-sm text-emerald-300">Copy</span>
+                              <Copy className="w-3.5 h-3.5 text-emerald-300" />
+                              <span className="text-xs text-emerald-300">Copy</span>
                             </>
                           )}
                         </button>
@@ -403,11 +402,11 @@ export default function Settings() {
                     </div>
                   )}
 
-                  {/* Current Email (if already set) */}
+                  {/* Current Email */}
                   {profile?.username && profile.username !== usernameInput && (
-                    <div className="p-4 rounded-xl bg-gray-900/30 border border-gray-800/50">
-                      <p className="text-sm text-gray-400 mb-1">Current Email</p>
-                      <p className="text-lg font-mono text-gray-300">
+                    <div className="p-3 rounded-xl bg-gray-900/20 border border-gray-800/40">
+                      <p className="text-[10px] text-gray-500 mb-0.5">Current Email</p>
+                      <p className="text-sm font-mono text-gray-300">
                         {getFullEmail(profile.username)}
                       </p>
                     </div>
@@ -416,34 +415,34 @@ export default function Settings() {
               </div>
 
               {/* Privacy Settings Card */}
-              <div className="bg-gradient-to-br from-gray-900/40 to-black/40 rounded-2xl border border-gray-800/50 backdrop-blur-xl p-6 lg:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/20">
-                    <Shield className="w-6 h-6 text-purple-400" />
+              <div className="bg-gradient-to-br from-gray-900/30 to-black/30 rounded-2xl border border-gray-800/40 p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-lg bg-purple-500/10 border border-purple-500/15">
+                    <Shield className="w-5 h-5 text-purple-400" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">Privacy Settings</h2>
-                    <p className="text-sm text-gray-400">Control your messaging privacy</p>
+                    <h2 className="text-lg font-bold text-white">Privacy Settings</h2>
+                    <p className="text-xs text-gray-500">Control your messaging privacy</p>
                   </div>
                 </div>
 
-                <div className="space-y-6">
-                  {/* Anonymous Mode Toggle */}
-                  <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-gray-900/30 border border-gray-800/50">
+                <div className="space-y-4">
+                  {/* Anonymous Mode */}
+                  <div className="flex items-start justify-between gap-3 p-4 rounded-xl bg-gray-900/20 border border-gray-800/40">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="p-2 rounded-lg bg-purple-500/10 mt-1">
+                      <div className="p-1.5 rounded-lg bg-purple-500/10 mt-0.5">
                         {anonMode ? (
-                          <EyeOff className="w-5 h-5 text-purple-400" />
+                          <EyeOff className="w-4 h-4 text-purple-400" />
                         ) : (
-                          <Eye className="w-5 h-5 text-emerald-400" />
+                          <Eye className="w-4 h-4 text-emerald-400" />
                         )}
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-medium text-white mb-1">Anonymous Mode</h3>
-                        <p className="text-sm text-gray-400">
-                          Hide your email address from recipients. They'll see your wallet address instead.
+                        <h3 className="font-medium text-sm text-white mb-0.5">Anonymous Mode</h3>
+                        <p className="text-xs text-gray-500">
+                          Hide your email from recipients. They see your wallet address instead.
                         </p>
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-[10px] text-gray-600 mt-1">
                           {anonMode
                             ? 'Recipients see: kaspa:qr...'
                             : profile?.username
@@ -456,30 +455,30 @@ export default function Settings() {
                       onClick={() => setAnonMode(!anonMode)}
                       className={`p-1 rounded-lg transition-all ${
                         anonMode
-                          ? 'bg-purple-500/20 border border-purple-500/30'
-                          : 'bg-gray-700/30 border border-gray-600/30'
+                          ? 'bg-purple-500/15 border border-purple-500/25'
+                          : 'bg-gray-700/20 border border-gray-600/25'
                       }`}
                     >
                       {anonMode ? (
-                        <ToggleRight className="w-8 h-8 text-purple-400" />
+                        <ToggleRight className="w-7 h-7 text-purple-400" />
                       ) : (
-                        <ToggleLeft className="w-8 h-8 text-gray-400" />
+                        <ToggleLeft className="w-7 h-7 text-gray-400" />
                       )}
                     </button>
                   </div>
 
                   {/* Only Internal Toggle */}
-                  <div className="flex items-start justify-between gap-4 p-4 rounded-xl bg-gray-900/30 border border-gray-800/50">
+                  <div className="flex items-start justify-between gap-3 p-4 rounded-xl bg-gray-900/20 border border-gray-800/40">
                     <div className="flex items-start gap-3 flex-1">
-                      <div className="p-2 rounded-lg bg-blue-500/10 mt-1">
-                        <Lock className="w-5 h-5 text-blue-400" />
+                      <div className="p-1.5 rounded-lg bg-blue-500/10 mt-0.5">
+                        <Lock className="w-4 h-4 text-blue-400" />
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-medium text-white mb-1">Only KasMail Users</h3>
-                        <p className="text-sm text-gray-400">
-                          Only accept messages from registered KasMail users with email addresses.
+                        <h3 className="font-medium text-sm text-white mb-0.5">Only KasMail Users</h3>
+                        <p className="text-xs text-gray-500">
+                          Only accept messages from registered KasMail users.
                         </p>
-                        <p className="text-xs text-gray-500 mt-2">
+                        <p className="text-[10px] text-gray-600 mt-1">
                           {onlyInternal
                             ? 'Blocking messages from unknown wallet addresses'
                             : 'Accepting messages from any Kaspa wallet'}
@@ -490,29 +489,29 @@ export default function Settings() {
                       onClick={() => setOnlyInternal(!onlyInternal)}
                       className={`p-1 rounded-lg transition-all ${
                         onlyInternal
-                          ? 'bg-blue-500/20 border border-blue-500/30'
-                          : 'bg-gray-700/30 border border-gray-600/30'
+                          ? 'bg-blue-500/15 border border-blue-500/25'
+                          : 'bg-gray-700/20 border border-gray-600/25'
                       }`}
                     >
                       {onlyInternal ? (
-                        <ToggleRight className="w-8 h-8 text-blue-400" />
+                        <ToggleRight className="w-7 h-7 text-blue-400" />
                       ) : (
-                        <ToggleLeft className="w-8 h-8 text-gray-400" />
+                        <ToggleLeft className="w-7 h-7 text-gray-400" />
                       )}
                     </button>
                   </div>
 
                   {/* Display Preview */}
-                  <div className="p-4 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20">
-                    <h4 className="text-sm font-medium text-cyan-300 mb-2">How Others See You</h4>
-                    <p className="text-lg font-mono text-white break-all">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/15">
+                    <h4 className="text-xs font-medium text-cyan-300 mb-1">How Others See You</h4>
+                    <p className="text-sm font-mono text-white break-all">
                       {anonMode
                         ? `${walletAddress.slice(0, 12)}...${walletAddress.slice(-8)}`
-                        : profile?.username 
+                        : profile?.username
                         ? getFullEmail(profile.username)
                         : 'No email address set'}
                     </p>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-[10px] text-gray-600 mt-1">
                       This is how others will see you in messages
                     </p>
                   </div>
@@ -520,51 +519,51 @@ export default function Settings() {
               </div>
 
               {/* Wallet Info */}
-              <div className="bg-gradient-to-br from-gray-900/40 to-black/40 rounded-2xl border border-gray-800/50 backdrop-blur-xl p-6 lg:p-8">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                    <Globe className="w-6 h-6 text-blue-400" />
+              <div className="bg-gradient-to-br from-gray-900/30 to-black/30 rounded-2xl border border-gray-800/40 p-6">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/15">
+                    <Globe className="w-5 h-5 text-blue-400" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-white">Wallet Information</h2>
-                    <p className="text-sm text-gray-400">Your Kaspa wallet details</p>
+                    <h2 className="text-lg font-bold text-white">Wallet Information</h2>
+                    <p className="text-xs text-gray-500">Your Kaspa wallet details</p>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-gray-400 mb-2">Connected Address</p>
-                    <div className="flex items-center justify-between p-4 rounded-xl bg-gray-900/30 border border-gray-800/50">
-                      <p className="font-mono text-cyan-300 truncate">
+                    <p className="text-xs text-gray-500 mb-1.5">Connected Address</p>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-gray-900/20 border border-gray-800/40">
+                      <p className="font-mono text-cyan-300 text-sm truncate">
                         {walletAddress}
                       </p>
                       <button
                         onClick={() => copyToClipboard(walletAddress)}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-800/50 hover:bg-gray-700/50 border border-gray-700 hover:border-gray-600 transition-all"
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800/40 hover:bg-gray-700/40 border border-gray-700/50 hover:border-gray-600 transition-all"
                       >
                         {copied ? (
-                          <Check className="w-4 h-4 text-emerald-400" />
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
                         ) : (
-                          <Copy className="w-4 h-4" />
+                          <Copy className="w-3.5 h-3.5" />
                         )}
-                        <span className="text-sm">{copied ? 'Copied!' : 'Copy'}</span>
+                        <span className="text-xs">{copied ? 'Copied!' : 'Copy'}</span>
                       </button>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                      <p className="text-sm text-emerald-300 mb-1">Minimum Balance</p>
-                      <p className="text-2xl font-bold text-white">1 KAS</p>
-                      <p className="text-xs text-emerald-300/70 mt-1">Required to send messages</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/15">
+                      <p className="text-[10px] text-emerald-300 mb-0.5">Minimum Balance</p>
+                      <p className="text-xl font-bold text-white">1 KAS</p>
+                      <p className="text-[10px] text-emerald-300/60 mt-0.5">Required to send messages</p>
                     </div>
-                    <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/20">
-                      <p className="text-sm text-cyan-300 mb-1">Network Status</p>
+                    <div className="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/15">
+                      <p className="text-[10px] text-cyan-300 mb-0.5">Network Status</p>
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <p className="text-2xl font-bold text-white">Active</p>
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <p className="text-xl font-bold text-white">Active</p>
                       </div>
-                      <p className="text-xs text-cyan-300/70 mt-1">1 BPS • ~10s confirmations</p>
+                      <p className="text-[10px] text-cyan-300/60 mt-0.5">1 BPS &middot; ~10s confirmations</p>
                     </div>
                   </div>
                 </div>
@@ -574,16 +573,16 @@ export default function Settings() {
               <button
                 onClick={handleSave}
                 disabled={saving || (!!usernameInput && !isAvailable)}
-                className="w-full py-4 px-6 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-600 text-white rounded-xl font-medium transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                className="w-full py-3 px-5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 disabled:from-gray-700 disabled:to-gray-600 text-white rounded-xl font-medium text-sm transition-all disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <>
-                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <RefreshCw className="w-4 h-4 animate-spin" />
                     Saving...
                   </>
                 ) : (
                   <>
-                    <CheckCircle className="w-5 h-5" />
+                    <CheckCircle className="w-4 h-4" />
                     Save All Settings
                   </>
                 )}
@@ -591,115 +590,115 @@ export default function Settings() {
             </div>
 
             {/* Right Column - Info Cards */}
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Security Card */}
-              <div className="bg-gradient-to-br from-gray-900/40 to-black/40 rounded-2xl border border-gray-800/50 backdrop-blur-xl p-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20">
-                    <ShieldCheck className="w-6 h-6 text-cyan-400" />
+              <div className="bg-gradient-to-br from-gray-900/30 to-black/30 rounded-2xl border border-gray-800/40 p-5">
+                <div className="flex items-center gap-2.5 mb-5">
+                  <div className="p-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/15">
+                    <ShieldCheck className="w-5 h-5 text-cyan-400" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-white">Security Features</h3>
-                    <p className="text-sm text-gray-400">Powered by Kaspa</p>
+                    <h3 className="font-bold text-sm text-white">Security Features</h3>
+                    <p className="text-[10px] text-gray-500">Powered by Kaspa</p>
                   </div>
                 </div>
 
-                <ul className="space-y-4">
-                  <li className="flex items-start gap-3">
-                    <Lock className="w-5 h-5 text-emerald-400 mt-0.5" />
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <Lock className="w-4 h-4 text-emerald-400 mt-0.5" />
                     <div>
-                      <p className="font-medium text-white">End-to-End Encryption</p>
-                      <p className="text-sm text-gray-400">All messages are encrypted</p>
+                      <p className="font-medium text-xs text-white">End-to-End Encryption</p>
+                      <p className="text-[10px] text-gray-500">All messages are encrypted</p>
                     </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Zap className="w-5 h-5 text-emerald-400 mt-0.5" />
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <Zap className="w-4 h-4 text-emerald-400 mt-0.5" />
                     <div>
-                      <p className="font-medium text-white">Immutable Storage</p>
-                      <p className="text-sm text-gray-400">Messages stored on-chain</p>
+                      <p className="font-medium text-xs text-white">Immutable Storage</p>
+                      <p className="text-[10px] text-gray-500">Messages stored on-chain</p>
                     </div>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <Mail className="w-5 h-5 text-emerald-400 mt-0.5" />
+                  </div>
+                  <div className="flex items-start gap-2.5">
+                    <Mail className="w-4 h-4 text-emerald-400 mt-0.5" />
                     <div>
-                      <p className="font-medium text-white">No Central Servers</p>
-                      <p className="text-sm text-gray-400">Decentralized architecture</p>
+                      <p className="font-medium text-xs text-white">No Central Servers</p>
+                      <p className="text-[10px] text-gray-500">Decentralized architecture</p>
                     </div>
-                  </li>
-                </ul>
+                  </div>
+                </div>
               </div>
 
               {/* Quick Actions */}
-              <div className="bg-gradient-to-br from-gray-900/40 to-black/40 rounded-2xl border border-gray-800/50 backdrop-blur-xl p-6">
-                <h3 className="font-bold text-white mb-6">Quick Actions</h3>
-                <div className="space-y-3">
+              <div className="bg-gradient-to-br from-gray-900/30 to-black/30 rounded-2xl border border-gray-800/40 p-5">
+                <h3 className="font-bold text-sm text-white mb-4">Quick Actions</h3>
+                <div className="space-y-2">
                   <button
                     onClick={() => navigate('/inbox')}
-                    className="w-full flex items-center justify-between p-4 rounded-xl bg-gray-900/30 border border-gray-800 hover:border-gray-700 hover:bg-gray-800/30 transition-all group"
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-gray-900/20 border border-gray-800/40 hover:border-gray-700 transition-all group"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-cyan-500/10">
-                        <Mail className="w-4 h-4 text-cyan-400" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-cyan-500/10">
+                        <Mail className="w-3.5 h-3.5 text-cyan-400" />
                       </div>
-                      <span className="font-medium">Back to Inbox</span>
+                      <span className="font-medium text-xs">Back to Inbox</span>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-white" />
+                    <ChevronRight className="w-4 h-4 text-gray-500 group-hover:text-white" />
                   </button>
                   <button
                     onClick={() => navigate('/compose')}
-                    className="w-full flex items-center justify-between p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 hover:border-emerald-400/40 hover:bg-emerald-500/15 transition-all group"
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/15 hover:border-emerald-400/30 transition-all group"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-emerald-500/20">
-                        <Mail className="w-4 h-4 text-emerald-400" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-emerald-500/15">
+                        <Mail className="w-3.5 h-3.5 text-emerald-400" />
                       </div>
-                      <span className="font-medium">Compose Message</span>
+                      <span className="font-medium text-xs">Compose Message</span>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-emerald-400 group-hover:text-emerald-300" />
+                    <ChevronRight className="w-4 h-4 text-emerald-400 group-hover:text-emerald-300" />
                   </button>
                   <button
                     onClick={() => window.open('https://kaspa.org', '_blank')}
-                    className="w-full flex items-center justify-between p-4 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:border-blue-400/40 hover:bg-blue-500/15 transition-all group"
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-blue-500/10 border border-blue-500/15 hover:border-blue-400/30 transition-all group"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-blue-500/20">
-                        <Globe className="w-4 h-4 text-blue-400" />
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 rounded-lg bg-blue-500/15">
+                        <Globe className="w-3.5 h-3.5 text-blue-400" />
                       </div>
-                      <span className="font-medium">Kaspa Explorer</span>
+                      <span className="font-medium text-xs">Kaspa Explorer</span>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-blue-400 group-hover:text-blue-300" />
+                    <ChevronRight className="w-4 h-4 text-blue-400 group-hover:text-blue-300" />
                   </button>
                 </div>
               </div>
 
               {/* Current Status */}
-              <div className="bg-gradient-to-br from-gray-900/40 to-black/40 rounded-2xl border border-gray-800/50 backdrop-blur-xl p-6">
-                <h3 className="font-bold text-white mb-6">Current Status</h3>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Email Address</span>
+              <div className="bg-gradient-to-br from-gray-900/30 to-black/30 rounded-2xl border border-gray-800/40 p-5">
+                <h3 className="font-bold text-sm text-white mb-4">Current Status</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Email Address</span>
                     <span className="font-medium text-emerald-300">
                       {profile?.username ? 'Set' : 'Not set'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Only KasMail Users</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Only KasMail Users</span>
                     <span className={`font-medium ${onlyInternal ? 'text-blue-300' : 'text-emerald-300'}`}>
                       {onlyInternal ? 'Enabled' : 'Disabled'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Privacy Mode</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Privacy Mode</span>
                     <span className={`font-medium ${anonMode ? 'text-cyan-300' : 'text-emerald-300'}`}>
                       {anonMode ? 'Anonymous' : 'Public'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Messages Sent</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Messages Sent</span>
                     <span className="font-medium text-white">--</span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-400">Messages Received</span>
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-500">Messages Received</span>
                     <span className="font-medium text-white">--</span>
                   </div>
                 </div>
@@ -708,16 +707,6 @@ export default function Settings() {
           </div>
         </div>
       </main>
-
-      <style>{`
-        @keyframes pulse-once {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.8; }
-        }
-        .animate-pulse-once {
-          animation: pulse-once 2s ease-in-out;
-        }
-      `}</style>
     </div>
   )
 }
