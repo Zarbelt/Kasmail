@@ -1,38 +1,13 @@
 // src/pages/Login.tsx
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { connectKaswareWallet, hasMinimumKAS, signChallenge } from '../lib/kaspa'
 import { supabase } from '../lib/supabaseClient'
 import {
-  Mail, Shield, Zap, ArrowRight, ChevronDown,  Globe,
+  Mail, Shield, Zap, ArrowRight, Globe, Info,
   FileText, BookOpen, ExternalLink, Copy, Check, Wallet, Send,
-  Code, Database, EyeOff, Pickaxe, 
+  Code, Database, EyeOff, Pickaxe, AlertCircle,
 } from 'lucide-react'
-
-/* ── Animated number counter ─────────────────────────────────────────────── */
-function AnimCount({ to, suffix = '' }: { to: number; suffix?: string }) {
-  const [n, setN] = useState(0)
-  const ref = useRef<HTMLSpanElement>(null)
-  useEffect(() => {
-    const obs = new IntersectionObserver(
-      ([e]) => {
-        if (e.isIntersecting) {
-          let v = 0
-          const step = Math.max(1, Math.ceil(to / 35))
-          const t = setInterval(() => {
-            v += step
-            if (v >= to) { setN(to); clearInterval(t) } else setN(v)
-          }, 25)
-          obs.disconnect()
-        }
-      },
-      { threshold: 0.4 }
-    )
-    if (ref.current) obs.observe(ref.current)
-    return () => obs.disconnect()
-  }, [to])
-  return <span ref={ref}>{n}{suffix}</span>
-}
 
 /* ── README doc sections ─────────────────────────────────────────────────── */
 const DOC_SECTIONS = [
@@ -148,149 +123,147 @@ export default function Login() {
           <div className="flex items-center gap-5">
             <a href="#how" className="text-[13px] text-gray-500 hover:text-white transition-colors hidden md:block">How it works</a>
             <a href="README.md" className="text-[13px] text-gray-500 hover:text-white transition-colors hidden md:block">Docs</a>
-            <a href="https://github.com/Zarbelt/Kasmail" target="_blank" rel="noopener noreferrer" className="text-[13px] text-gray-500 hover:text-white transition-colors hidden sm:block">GitHub</a>
             <button
               onClick={handleConnect}
               disabled={loading}
-              className="px-4 py-1.5 text-[13px] font-bold bg-gradient-to-r from-cyan-500 to-emerald-500 text-black rounded-lg hover:shadow-lg hover:shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-[0.97] disabled:opacity-60"
+              className="group flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-cyan-500 to-emerald-500 text-black font-extrabold rounded-lg text-[13px] hover:shadow-lg hover:shadow-cyan-500/20 transition-all hover:scale-[1.03] disabled:opacity-60"
             >
+              <Wallet className="w-3.5 h-3.5" />
               {loading ? 'Connecting...' : 'Launch App'}
             </button>
           </div>
         </div>
       </nav>
 
-      {/* ═══════════════════ HERO ═══════════════════════════════════════ */}
-      <section className="relative pt-28 pb-20 px-5">
-        {/* Glow orbs */}
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-cyan-600/[0.06] rounded-full blur-[140px] pointer-events-none" />
-        <div className="absolute top-32 right-1/4 w-[250px] h-[250px] bg-emerald-500/[0.05] rounded-full blur-[100px] pointer-events-none" />
+      {/* ═══════════════════ HERO ══════════════════════════════════════ */}
+      <section className="relative pt-24 pb-20 px-5 overflow-hidden">
+        {/* BG gradients */}
+        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-[150px] pointer-events-none" />
+        <div className="absolute top-20 right-1/4 w-[500px] h-[500px] bg-emerald-500/5 rounded-full blur-[130px] pointer-events-none" />
 
-        <div className="max-w-3xl mx-auto text-center relative z-10">
-          {/* Pill */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/[0.04] mb-8">
-            <span className="relative flex h-1.5 w-1.5"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" /><span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-400" /></span>
-            <span className="text-[11px] font-semibold text-emerald-300/90 tracking-wide">Built for Kaspathon · Powered by Kaspa L1</span>
+        <div className="max-w-4xl mx-auto text-center relative z-10">
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-cyan-500/20 bg-cyan-500/5 mb-6">
+            <div className="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-pulse" />
+            <span className="text-[11px] font-bold text-cyan-300 uppercase tracking-wide">Decentralized Email for Kaspa</span>
           </div>
 
-          <h1 className="text-[clamp(2.5rem,7vw,4.5rem)] font-black leading-[0.92] tracking-[-0.03em] mb-5">
-            <span className="text-white">Decentralized Email</span>
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-emerald-400 to-teal-300">That Rewards Miners</span>
+          {/* Hero headline */}
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] mb-5">
+            Send Email,<br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-emerald-400 to-cyan-500">
+              Reward Miners
+            </span>
           </h1>
 
-          <p className="text-base sm:text-lg text-gray-400 max-w-lg mx-auto leading-relaxed mb-10">
-            Your Kaspa wallet is your identity. Every email sends{' '}
-            <span className="text-emerald-400 font-semibold">1 KAS to devs</span> +{' '}
-            <span className="text-cyan-400 font-semibold">1 KAS to a random miner</span>.
+          <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-8 leading-relaxed">
+            Every KasMail message sends 1 KAS to a random top miner — supporting the network while proving authenticity on-chain. 
+            Connect your wallet, no accounts needed.
           </p>
 
-          {/* CTA row */}
+          {/* Username Notice Card */}
+          <div className="max-w-xl mx-auto mb-8 p-4 rounded-xl bg-gradient-to-br from-blue-900/20 to-purple-900/20 border border-blue-500/30">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="text-left">
+                <h3 className="text-sm font-bold text-blue-300 mb-1.5">
+                  Set a Username to Receive Emails
+                </h3>
+                <p className="text-xs text-blue-100/80 leading-relaxed">
+                  After connecting your wallet, set a username in Settings to receive external emails at <span className="font-mono text-blue-200">username@kasmail.org</span>. 
+                  Without a username, you can send emails but won't be able to receive messages from external senders.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-6">
             <button
               onClick={handleConnect}
               disabled={loading}
-              className="group flex items-center gap-2 px-7 py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 text-black font-extrabold rounded-xl text-sm hover:shadow-2xl hover:shadow-cyan-500/25 transition-all hover:scale-[1.03] active:scale-[0.96] disabled:opacity-60"
+              className="group inline-flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-emerald-500 text-black font-extrabold rounded-xl text-sm hover:shadow-2xl hover:shadow-cyan-500/25 transition-all hover:scale-[1.03] active:scale-[0.96] disabled:opacity-60"
             >
               <Wallet className="w-4 h-4" />
-              Connect KasWare Wallet
+              {loading ? 'Connecting...' : 'Connect Wallet & Enter'}
               <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />
             </button>
-            <button
-              onClick={copyGit}
-              className="flex items-center gap-2 px-5 py-3.5 border border-gray-800 hover:border-gray-600 rounded-xl text-[13px] text-gray-400 hover:text-white transition-all bg-white/[0.015]"
+            <a
+              href="https://github.com/Zarbelt/Kasmail"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl border border-gray-700 text-gray-300 hover:border-gray-600 hover:text-white font-semibold text-sm transition-all"
             >
-              <Code className="w-3.5 h-3.5 text-gray-600" />
-              <code className="font-mono text-[11px]">git clone Zarbelt/Kasmail</code>
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-gray-700" />}
-            </button>
+              <Code className="w-4 h-4" />
+              View on GitHub
+              <ExternalLink className="w-3 h-3" />
+            </a>
           </div>
 
-          {/* Error */}
           {error && (
-            <div className="max-w-sm mx-auto mb-6 px-4 py-2.5 rounded-xl bg-red-950/30 border border-red-800/30 text-red-300 text-sm text-center">
-              {error}
-            </div>
+            <p className="text-sm text-red-400 mt-3">{error}</p>
           )}
 
           {/* Stats */}
-          <div className="flex items-center justify-center gap-10 sm:gap-16 mt-4">
-            {[
-              { v: 50, s: '', l: 'Miners in Pool' },
-              { v: 2, s: ' KAS', l: 'Per Email Fee' },
-              { v: 1, s: ' BPS', l: 'Block Speed' },
-            ].map((s, i) => (
-              <div key={i} className="text-center">
-                <p className="text-2xl sm:text-3xl font-black text-white"><AnimCount to={s.v} suffix={s.s} /></p>
-                <p className="text-[10px] text-gray-600 mt-0.5 tracking-wide">{s.l}</p>
-              </div>
-            ))}
+          <div className="flex flex-wrap items-center justify-center gap-8 pt-8 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-gray-500">On-chain proof</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-cyan-500" />
+              <span className="text-gray-500">Miner rewards</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-purple-500" />
+              <span className="text-gray-500">External email support</span>
+            </div>
           </div>
-
-          <p className="mt-10 text-[11px] text-gray-700">
-            KasWare extension required · Minimum 1 KAS balance
-          </p>
-        </div>
-
-        <div className="flex justify-center mt-12">
-          <a href="#how" className="animate-bounce text-gray-800 hover:text-gray-500 transition-colors">
-            <ChevronDown className="w-5 h-5" />
-          </a>
         </div>
       </section>
 
-      {/* ═══════════════════ HOW IT WORKS ═══════════════════════════════ */}
-      <section id="how" className="py-20 px-5 border-t border-white/[0.03]">
-        <div className="max-w-5xl mx-auto">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-cyan-500/80 font-bold text-center mb-2">How It Works</p>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-center mb-14">
-            Send an Email, <span className="text-emerald-400">Reward a Miner</span>
-          </h2>
+      {/* ═══════════════════ HOW IT WORKS ══════════════════════════════ */}
+      <section id="how" className="py-20 px-5 border-t border-white/[0.03] relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-emerald-500/[0.01] to-transparent pointer-events-none" />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {[
-              { step: '01', icon: Wallet, t: 'Connect Wallet', d: 'KasWare authenticates you. Your Kaspa address becomes your email identity.', c: 'cyan' },
-              { step: '02', icon: Send, t: 'Compose & Send', d: 'Write to @kasmail.org users or external emails via Resend.com relay.', c: 'emerald' },
-              { step: '03', icon: Zap, t: 'Two On-Chain Txs', d: '1 KAS → developer wallet (proof) + 1 KAS → random top-50 miner (reward).', c: 'amber' },
-              { step: '04', icon: Pickaxe, t: 'Miner Rewarded', d: 'A random miner receives 1 KAS. Both txIds stored for full transparency.', c: 'violet' },
-            ].map((item, i) => {
-              const colors: Record<string, string> = {
-                cyan: 'border-cyan-500/15 bg-cyan-500/[0.04] text-cyan-400',
-                emerald: 'border-emerald-500/15 bg-emerald-500/[0.04] text-emerald-400',
-                amber: 'border-amber-500/15 bg-amber-500/[0.04] text-amber-400',
-                violet: 'border-violet-500/15 bg-violet-500/[0.04] text-violet-400',
-              }
-              return (
-                <div key={i} className="relative p-5 rounded-2xl border border-gray-800/40 bg-[#0a0a0f] hover:border-gray-700/50 transition-all group">
-                  <span className="absolute -top-2.5 left-4 text-[9px] font-black text-gray-700 bg-[#0a0a0f] px-2 border border-gray-800/60 rounded-full">{item.step}</span>
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center mb-3 border ${colors[item.c]}`}>
-                    <item.icon className="w-4 h-4" />
-                  </div>
-                  <h3 className="text-sm font-bold text-white mb-1">{item.t}</h3>
-                  <p className="text-[11px] text-gray-500 leading-relaxed">{item.d}</p>
-                </div>
-              )
-            })}
+        <div className="max-w-5xl mx-auto relative z-10">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">How KasMail Works</h2>
+            <p className="text-sm text-gray-500">Three simple steps to decentralized email</p>
           </div>
 
-          {/* Fee visual */}
-          <div className="max-w-lg mx-auto mt-12 p-5 rounded-2xl bg-[#0a0a0f] border border-gray-800/40">
-            <p className="text-[9px] uppercase tracking-[0.3em] text-gray-600 font-bold text-center mb-4">Fee Per Email (Optional)</p>
-            <div className="flex items-center justify-center gap-4">
-              <div className="flex-1 p-3 rounded-xl bg-emerald-500/[0.04] border border-emerald-500/10 text-center">
-                <p className="text-xl font-black text-emerald-400">1 KAS</p>
-                <p className="text-[9px] text-emerald-300/50 mt-0.5">Developer</p>
+          <div className="grid md:grid-cols-3 gap-6">
+            {/* Step 1 */}
+            <div className="group p-6 rounded-2xl border border-gray-800/40 bg-gradient-to-br from-gray-900/40 to-gray-950/40 hover:border-cyan-500/30 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Wallet className="w-5 h-5 text-cyan-400" />
               </div>
-              <span className="text-gray-700 font-bold text-lg">+</span>
-              <div className="flex-1 p-3 rounded-xl bg-cyan-500/[0.04] border border-cyan-500/10 text-center">
-                <p className="text-xl font-black text-cyan-400">1 KAS</p>
-                <p className="text-[9px] text-cyan-300/50 mt-0.5">Random Miner</p>
+              <h3 className="text-base font-bold mb-2">1. Connect Wallet</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Install KasWare extension and connect your Kaspa wallet. Your wallet address becomes your identity — no passwords needed.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="group p-6 rounded-2xl border border-gray-800/40 bg-gradient-to-br from-gray-900/40 to-gray-950/40 hover:border-emerald-500/30 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Send className="w-5 h-5 text-emerald-400" />
               </div>
-              <span className="text-gray-700 font-bold text-lg">=</span>
-              <div className="flex-1 p-3 rounded-xl bg-white/[0.02] border border-gray-800 text-center">
-                <p className="text-xl font-black text-white">2 KAS</p>
-                <p className="text-[9px] text-gray-600 mt-0.5">Total</p>
+              <h3 className="text-base font-bold mb-2">2. Send KasMail</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Compose and send. Each message triggers two 1 KAS transactions: one to the dev wallet for on-chain proof, one to a random miner.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="group p-6 rounded-2xl border border-gray-800/40 bg-gradient-to-br from-gray-900/40 to-gray-950/40 hover:border-purple-500/30 transition-all">
+              <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <Pickaxe className="w-5 h-5 text-purple-400" />
               </div>
+              <h3 className="text-base font-bold mb-2">3. Miner Gets Paid</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                A random miner from the top-50 pool receives 1 KAS, creating an L1 network effect that benefits the entire Kaspa ecosystem.
+              </p>
             </div>
           </div>
         </div>
@@ -299,99 +272,196 @@ export default function Login() {
       {/* ═══════════════════ FEATURES ══════════════════════════════════ */}
       <section className="py-20 px-5 border-t border-white/[0.03]">
         <div className="max-w-5xl mx-auto">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {[
-              { icon: Shield, t: 'Wallet = Identity', d: 'No passwords. No central servers. Your Kaspa address is your email address.', c: 'text-cyan-400 bg-cyan-500/[0.06] border-cyan-500/10' },
-              { icon: Pickaxe, t: 'Miner Rewards', d: 'Every email distributes 1 KAS to a random miner from the top 50 pool — L1 network effect.', c: 'text-emerald-400 bg-emerald-500/[0.06] border-emerald-500/10' },
-              { icon: Globe, t: 'External Email', d: 'Send to Gmail, Outlook via Resend.com. Receive external emails into your KasMail inbox.', c: 'text-blue-400 bg-blue-500/[0.06] border-blue-500/10' },
-              { icon: EyeOff, t: 'Anonymous Mode', d: 'Hide your username entirely. Only a truncated wallet address is visible to recipients.', c: 'text-violet-400 bg-violet-500/[0.06] border-violet-500/10' },
-              { icon: Database, t: ' Backend', d: 'Real-time inbox, file storage, miner address management — all with Row Level Security.', c: 'text-amber-400 bg-amber-500/[0.06] border-amber-500/10' },
-              { icon: Zap, t: 'On-Chain Proof', d: 'Both transaction IDs (dev + miner) stored in the emails table for verifiable delivery.', c: 'text-rose-400 bg-rose-500/[0.06] border-rose-500/10' },
-            ].map((f, i) => (
-              <div key={i} className="p-5 rounded-2xl border border-gray-800/30 bg-[#0a0a0f] hover:border-gray-700/40 transition-all">
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-3 border ${f.c}`}>
-                  <f.icon className="w-4 h-4" />
-                </div>
-                <h3 className="text-[13px] font-bold text-white mb-1">{f.t}</h3>
-                <p className="text-[11px] text-gray-500 leading-relaxed">{f.d}</p>
-              </div>
-            ))}
+          <div className="text-center mb-12">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Powered by Kaspa</h2>
+            <p className="text-sm text-gray-500">Email built on the fastest, most scalable proof-of-work blockchain</p>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="p-5 rounded-xl border border-gray-800/30 bg-gray-900/20 hover:bg-gray-900/30 transition-colors">
+              <Shield className="w-5 h-5 text-emerald-400 mb-3" />
+              <h3 className="text-sm font-bold mb-1.5">On-chain Proof</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">Every email has a transaction ID proving authenticity and timestamp</p>
+            </div>
+
+            <div className="p-5 rounded-xl border border-gray-800/30 bg-gray-900/20 hover:bg-gray-900/30 transition-colors">
+              <Zap className="w-5 h-5 text-cyan-400 mb-3" />
+              <h3 className="text-sm font-bold mb-1.5">Instant Delivery</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">Real-time inbox updates powered by Kaspa's 1-second block times</p>
+            </div>
+
+            <div className="p-5 rounded-xl border border-gray-800/30 bg-gray-900/20 hover:bg-gray-900/30 transition-colors">
+              <EyeOff className="w-5 h-5 text-purple-400 mb-3" />
+              <h3 className="text-sm font-bold mb-1.5">Anonymous Option</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">Hide your username and show only truncated wallet address</p>
+            </div>
+
+            <div className="p-5 rounded-xl border border-gray-800/30 bg-gray-900/20 hover:bg-gray-900/30 transition-colors">
+              <Globe className="w-5 h-5 text-blue-400 mb-3" />
+              <h3 className="text-sm font-bold mb-1.5">External Emails</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">Send and receive from Gmail, Outlook, and other providers</p>
+            </div>
+
+            <div className="p-5 rounded-xl border border-gray-800/30 bg-gray-900/20 hover:bg-gray-900/30 transition-colors">
+              <Database className="w-5 h-5 text-orange-400 mb-3" />
+              <h3 className="text-sm font-bold mb-1.5">Decentralized Storage</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">Messages stored on robust backend with wallet-based access control</p>
+            </div>
+
+            <div className="p-5 rounded-xl border border-gray-800/30 bg-gray-900/20 hover:bg-gray-900/30 transition-colors">
+              <Pickaxe className="w-5 h-5 text-yellow-400 mb-3" />
+              <h3 className="text-sm font-bold mb-1.5">Miner Rewards</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">Direct L1 network support with every message sent</p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ═══════════════════ DOCS / RESEARCH ══════════════════════════ */}
-      <section id="docs" className="py-20 px-5 border-t border-white/[0.03]">
-        <div className="max-w-3xl mx-auto">
-          <p className="text-[10px] uppercase tracking-[0.3em] text-cyan-500/80 font-bold text-center mb-2">Documentation</p>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-center mb-10">
-            Everything You Need
-          </h2>
+      {/* ═══════════════════ SPLIT FEE BREAKDOWN ═══════════════════════ */}
+      <section className="py-20 px-5 border-t border-white/[0.03] relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-cyan-500/[0.01] to-transparent pointer-events-none" />
 
-          {/* Tabs */}
+        <div className="max-w-3xl mx-auto relative z-10">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Split-Fee Model</h2>
+            <p className="text-sm text-gray-500">Transparent, on-chain fee distribution</p>
+          </div>
+
+          <div className="p-6 rounded-2xl border border-gray-800/40 bg-gradient-to-br from-gray-900/40 to-gray-950/40">
+            <div className="space-y-4">
+              {/* Dev Fee */}
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <span className="text-emerald-400 font-black text-sm">1</span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-sm font-bold text-emerald-300">Developer Fee</h3>
+                    <span className="text-emerald-400 font-black">1 KAS</span>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Sent to platform wallet as on-chain proof of message + platform maintenance
+                  </p>
+                </div>
+              </div>
+
+              {/* Miner Fee */}
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center">
+                  <span className="text-cyan-400 font-black text-sm">2</span>
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="text-sm font-bold text-cyan-300">Miner Reward</h3>
+                    <span className="text-cyan-400 font-black">1 KAS</span>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Random top-50 miner selected from pool — direct L1 network support
+                  </p>
+                </div>
+              </div>
+
+              {/* Balance Check */}
+              <div className="pt-4 border-t border-gray-800/30">
+                <div className="flex items-start gap-3">
+                  <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    <strong className="text-blue-300">Anti-spam check:</strong> Wallet must hold ≥ 1 KAS balance (never spent, just verified)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-xs text-gray-600">
+              Both transaction IDs stored with email for full transparency
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════ DOCS ══════════════════════════════════════ */}
+      <section className="py-20 px-5 border-t border-white/[0.03]">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight mb-3">Documentation</h2>
+            <p className="text-sm text-gray-500">Technical details and research</p>
+          </div>
+
+          {/* Tab switcher */}
           <div className="flex justify-center gap-2 mb-8">
             <button
               onClick={() => setActiveDoc('readme')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
                 activeDoc === 'readme'
-                  ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
-                  : 'text-gray-500 border border-gray-800/50 hover:text-gray-300 hover:border-gray-700'
+                  ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-300'
+                  : 'border border-gray-800/30 text-gray-500 hover:text-gray-300'
               }`}
             >
-              <BookOpen className="w-3.5 h-3.5" /> README.md
+              <FileText className="w-4 h-4" />
+              README
             </button>
             <button
               onClick={() => setActiveDoc('research')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-semibold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
                 activeDoc === 'research'
-                  ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                  : 'text-gray-500 border border-gray-800/50 hover:text-gray-300 hover:border-gray-700'
+                  ? 'bg-cyan-500/10 border border-cyan-500/30 text-cyan-300'
+                  : 'border border-gray-800/30 text-gray-500 hover:text-gray-300'
               }`}
             >
-              <FileText className="w-3.5 h-3.5" /> Research Paper
+              <BookOpen className="w-4 h-4" />
+              Research
             </button>
           </div>
 
-          {/* ── README tab ───────────────────────────────────────────── */}
+          {/* ── README tab ────────────────────────────────────────────── */}
           {activeDoc === 'readme' && (
             <div className="space-y-4">
               {/* Header */}
               <div className="p-5 rounded-2xl border border-gray-800/40 bg-[#0a0a0f]">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center shrink-0 shadow-lg shadow-cyan-500/10">
-                    <Mail className="w-5 h-5 text-black" strokeWidth={2.5} />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-white">KasMail — Decentralized Email powered by Kaspa</h3>
-                    <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                      Send & receive messages tied to your Kaspa wallet address. No central servers. Every email supports the mining network.
-                    </p>
-                    <div className="flex items-center gap-3 mt-2.5">
-                      <a href="https://github.com/Zarbelt/Kasmail" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-cyan-400 hover:text-cyan-300 transition-colors">
-                        <ExternalLink className="w-3 h-3" /> GitHub
-                      </a>
-                      <span className="text-gray-800 text-[10px]">·</span>
-                      <span className="text-[11px] text-gray-600">MIT License</span>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center">
+                      <Mail className="w-4 h-4 text-black" strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black">KasMail</h3>
+                      <p className="text-[10px] text-gray-500">Decentralized email for Kaspa</p>
                     </div>
                   </div>
+                  <button
+                    onClick={copyGit}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-800/40 hover:bg-gray-800/60 text-xs font-semibold transition-colors"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3 h-3 text-emerald-400" />
+                        <span className="text-emerald-400">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3 h-3" />
+                        Clone
+                      </>
+                    )}
+                  </button>
                 </div>
-              </div>
 
-              {/* Kaspa integration callout */}
-              <div className="p-4 rounded-2xl border border-emerald-500/10 bg-emerald-500/[0.02]">
-                <h4 className="text-xs font-bold text-emerald-400 mb-2.5">🎯 Kaspa Integration — 3 Layers</h4>
-                <div className="space-y-1.5">
+                {/* Badges */}
+                <div className="flex flex-wrap gap-2">
                   {[
-                    ['1. Identity', 'Kaspa address = your email (KasWare)'],
-                    ['2. Delivery Proof', '1 KAS → dev wallet → dev_fee_txid'],
-                    ['3. Miner Reward', '1 KAS → random top-50 miner → miner_fee_txid'],
-                  ].map(([title, desc], j) => (
-                    <div key={j} className="flex items-start gap-2 px-1">
-                      <span className="text-[10px] font-black text-emerald-500 bg-emerald-500/10 w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5">{j + 1}</span>
-                      <div>
-                        <span className="text-[11px] font-bold text-white">{title}</span>
-                        <span className="text-[11px] text-gray-500"> — {desc}</span>
-                      </div>
+                    { icon: Code, label: 'React + TS' },
+                    { icon: Database, label: 'Supabase' },
+                    { icon: Zap, label: 'Kaspa L1' },
+                    { icon: Shield, label: 'KasWare' },
+                  ].map(({ icon: Icon, label }, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gray-800/30 border border-gray-700/30"
+                    >
+                      <Icon className="w-3 h-3 text-gray-500" />
+                      <span className="text-[10px] font-semibold text-gray-400">{label}</span>
                     </div>
                   ))}
                 </div>

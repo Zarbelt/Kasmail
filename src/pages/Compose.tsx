@@ -1,9 +1,9 @@
 // src/pages/Compose.tsx
-import { useState, useEffect, type ChangeEvent } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { getCurrentKaswareAddress, hasMinimumKAS, sendAntiBotFee } from '../lib/kaspa'
-import { Send, ArrowLeft, Paperclip, Info, X, Loader2 } from 'lucide-react'
+import { Send, ArrowLeft, Info, Loader2, AlertTriangle } from 'lucide-react'
 import type { Profile } from '../lib/types'
 
 const EMAIL_DOMAIN = '@kasmail.org'
@@ -25,10 +25,9 @@ export default function Compose() {
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
 
-  // Attachment
-  const [file, setFile] = useState<File | null>(null)
+  // Attachment (currently commented out but keeping state for future use)
+  const [file, _setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
   // Load sender preview and profile
   useEffect(() => {
@@ -78,26 +77,6 @@ export default function Compose() {
     loadReplyData()
   }, [replyToId])
 
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0]
-    if (!selected) return
-
-    if (selected.size > 5 * 1024 * 1024) {
-      setError('File too large (max 5MB)')
-      return
-    }
-
-    setFile(selected)
-    if (selected.type.startsWith('image/')) {
-      setPreviewUrl(URL.createObjectURL(selected))
-    }
-  }
-
-  const removeAttachment = () => {
-    setFile(null)
-    setPreviewUrl(null)
-  }
-
   const uploadAttachment = async () => {
     if (!file) return null
 
@@ -132,119 +111,134 @@ export default function Compose() {
   }
 
   const handleSend = async () => {
-    setSending(true)
-    setError(null)
-    setSendStep(null)
+  setSending(true)
+  setError(null)
+  setSendStep(null)
 
+  try {
     const addr = await getCurrentKaswareAddress()
-    if (!addr || !body.trim() || !to.trim()) {
-      setError('Missing fields')
-      setSending(false)
-      return
-    }
+    console.log("[SEND] Current wallet address:", addr)
+
+    if (!addr) throw new Error("No wallet connected")
+    if (!body.trim() || !to.trim()) throw new Error("Missing to/body")
 
     const hasMin = await hasMinimumKAS()
-    if (!hasMin) {
-      setError('Minimum 1 KAS required')
-      setSending(false)
-      return
-    }
+    if (!hasMin) throw new Error("Minimum 1 KAS required")
 
-    const isInternal = profile?.only_internal ?? true
-    let targetTo = to
+    const isInternalMode = profile?.only_internal ?? true
+    console.log("[SEND] Mode:", isInternalMode ? "INTERNAL" : "EXTERNAL")
 
-    try {
-      if (isInternal) {
-        // Internal: Only KasMail, with split fee
-        if (to.includes('@') && !to.endsWith(EMAIL_DOMAIN)) {
-          throw new Error('External emails disabled in settings')
-        }
+    let targetTo = to.trim()
 
-        // Resolve if username or @kasmail
-        if (to.endsWith(EMAIL_DOMAIN)) {
-          targetTo = to.split('@')[0]
-        }
-        if (!targetTo.startsWith('kaspa:')) {
-          targetTo = await resolveUsernameToWallet(targetTo)
-        }
+    if (isInternalMode) {
+      // ── internal path ────────────────────────────────────────
+      console.log("[SEND] Internal send - resolving recipient")
 
-        // Send split fee: 1 KAS dev + 1 KAS miner
-        setSendStep('Sending 1 KAS dev fee...')
-        const { devTxId, minerTxId, minerAddress } = await sendAntiBotFee()
+      if (to.includes('@') && !to.endsWith(EMAIL_DOMAIN)) {
+        throw new Error("External emails disabled in settings")
+      }
 
-        if (!devTxId && !minerTxId) {
-          throw new Error('Both transactions cancelled — email not sent')
-        }
+      if (to.endsWith(EMAIL_DOMAIN)) {
+        targetTo = to.split('@')[0]
+      }
 
-        if (minerTxId) {
-          setSendStep('Miner rewarded! Uploading...')
-        }
+      if (!targetTo.startsWith('kaspa:')) {
+        targetTo = await resolveUsernameToWallet(targetTo)
+        console.log("[SEND] Resolved username to:", targetTo)
+      }
 
-        const attachmentPath = await uploadAttachment()
+      setSendStep("Sending fees...")
+      const { devTxId, minerTxId, minerAddress } = await sendAntiBotFee()
 
-        setSendStep('Saving email...')
-        await supabase.from('emails').insert({
+      const attachmentPath = file ? await uploadAttachment() : null
+
+      setSendStep("Saving internal message...")
+      const { data, error: insertError } = await supabase
+        .from('emails')
+        .insert({
           from_wallet: addr,
           to_wallet: targetTo,
-          subject,
+          subject: subject.trim() || '(No subject)',
           body,
           dev_fee_txid: devTxId,
           miner_fee_txid: minerTxId,
           miner_address: minerAddress,
           attachment: attachmentPath,
+          read: true,
+          created_at: new Date().toISOString(),
         })
-      } else {
-        // External: send via edge function, no fee
-        if (!to.includes('@') || to.endsWith(EMAIL_DOMAIN)) {
-          throw new Error('Internal sends disabled - use external emails only')
-        }
+        .select()   // ← return the inserted row to confirm
 
-        const senderEmail = profile?.username
-          ? `${profile.username}${EMAIL_DOMAIN}`
-          : `anonymous${EMAIL_DOMAIN}`
+      console.log("[SEND] Internal insert result:", { data, insertError })
 
-        setSendStep('Sending via Resend...')
-        const res = await fetch(EDGE_SEND_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || ''}`,
-          },
-          body: JSON.stringify({
-            from: senderEmail,
-            to,
-            subject,
-            text: body,
-          }),
-        })
+      if (insertError) throw insertError
+    } else {
+      // ── external path ────────────────────────────────────────
+      console.log("[SEND] External send ")
 
-        if (!res.ok) {
-          const err = await res.json()
-          throw new Error(err.message || 'Send failed')
-        }
-
-        // Store external sent email in DB so it shows in Sent page
-        await supabase.from('emails').insert({
-          from_wallet: addr,
-          to_wallet: `external:${to}`,
-          subject,
-          body,
-          dev_fee_txid: null,
-          miner_fee_txid: null,
-          miner_address: null,
-          attachment: null,
-        })
+      if (!to.includes('@') || to.endsWith(EMAIL_DOMAIN)) {
+        throw new Error("Internal sends disabled in external mode")
       }
 
-      navigate('/inbox')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-      setSending(false)
-      setSendStep(null)
+      const senderEmail = profile?.username
+        ? `${profile.username}${EMAIL_DOMAIN}`
+        : `anon-${addr.slice(0,8)}${EMAIL_DOMAIN}`
+
+      setSendStep("Sending...")
+      const res = await fetch(EDGE_SEND_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: senderEmail,
+          to: targetTo,
+          subject: subject.trim() || '(No subject)',
+          text: body,
+        }),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(errData.message || `Resend failed (${res.status})`)
+      }
+
+     
+
+      
+      const { data, error: insertError } = await supabase
+        .from('emails')
+        .insert({
+          from_wallet: addr,
+          to_wallet: `external:${targetTo}`,
+          subject: subject.trim() || '(No subject)',
+          body,
+          read: true,
+          created_at: new Date().toISOString(),
+        })
+        .select()
+
+      console.log("[SEND] External insert result:", { data, insertError })
+
+      if (insertError) {
+        console.error("[SEND] Insert failed but email was sent:", insertError)
+        // Optional: setError("Email sent, but save failed – will appear soon")
+      }
     }
+
+    console.log("[SEND] Success - navigating")
+    setSendStep("Sent!")
+    setTimeout(() => navigate('/sent'), 1000)
+  } catch (err: any) {
+    console.error("[SEND] Full error:", err)
+    setError(err.message || "Send failed – check console")
+  } finally {
+    setSending(false)
+    setSendStep(null)
   }
+}
+
+  // Check if user is trying to send external without username
+  const isExternalMode = !profile?.only_internal
+  const hasNoUsername = !profile?.username
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black to-gray-950 text-white">
@@ -260,6 +254,30 @@ export default function Compose() {
         <h1 className="text-2xl font-bold mb-8">Compose KasMail</h1>
 
         <div className="space-y-5">
+          {/* Username Warning for External Mode */}
+          {isExternalMode && hasNoUsername && (
+            <div className="p-4 rounded-xl bg-gradient-to-br from-yellow-900/30 to-orange-900/30 border-2 border-yellow-500/40">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-yellow-300 mb-2">
+                    Set Username to Receive Emails
+                  </h3>
+                  <p className="text-xs text-yellow-100/90 leading-relaxed mb-3">
+                    You can send external emails without a username, but <strong>you won't be able to receive emails</strong> from external senders. 
+                    Set a username now to get your own <span className="font-mono text-yellow-200">username@kasmail.org</span> address.
+                  </p>
+                  <button
+                    onClick={() => navigate('/settings')}
+                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black font-semibold rounded-lg text-xs transition-colors"
+                  >
+                    Set Username in Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* From */}
           <div>
             <label className="block text-xs font-medium text-gray-400 mb-1.5">From</label>
@@ -306,8 +324,8 @@ export default function Compose() {
             />
           </div>
 
-          {/* Attachment */}
-          {/*<div className="flex items-center gap-3">
+          {/* Attachment - Commented out for future use
+          <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800/30 border border-gray-700/50 hover:border-cyan-500/40 cursor-pointer transition-colors text-sm">
               <Paperclip className="w-3.5 h-3.5" />
               Attach
