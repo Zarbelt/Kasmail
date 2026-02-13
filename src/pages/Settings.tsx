@@ -27,7 +27,7 @@ import {
 } from 'lucide-react'
 
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/
-const EMAIL_DOMAIN = '@kasmail.modmedianetwork.com'
+const EMAIL_DOMAIN = '@kasmail.org'
 
 export default function Settings() {
   const navigate = useNavigate()

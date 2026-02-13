@@ -21,6 +21,7 @@ export default function Compose() {
   const [body, setBody] = useState('')
   const [senderPreview, setSenderPreview] = useState<string>('Loading...')
   const [sending, setSending] = useState(false)
+  const [sendStep, setSendStep] = useState<string | null>(null) // progress indicator
   const [error, setError] = useState<string | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
 
@@ -133,6 +134,7 @@ export default function Compose() {
   const handleSend = async () => {
     setSending(true)
     setError(null)
+    setSendStep(null)
 
     const addr = await getCurrentKaswareAddress()
     if (!addr || !body.trim() || !to.trim()) {
@@ -153,7 +155,7 @@ export default function Compose() {
 
     try {
       if (isInternal) {
-        // Internal: Only KasMail, with fee
+        // Internal: Only KasMail, with split fee
         if (to.includes('@') && !to.endsWith(EMAIL_DOMAIN)) {
           throw new Error('External emails disabled in settings')
         }
@@ -166,20 +168,29 @@ export default function Compose() {
           targetTo = await resolveUsernameToWallet(targetTo)
         }
 
-        // Send fee for internal
-        const feeTxId = await sendAntiBotFee()
-        if (!feeTxId) {
-          throw new Error('Anti-bot fee cancelled')
+        // Send split fee: 1 KAS dev + 1 KAS miner
+        setSendStep('Sending 1 KAS dev fee...')
+        const { devTxId, minerTxId, minerAddress } = await sendAntiBotFee()
+
+        if (!devTxId && !minerTxId) {
+          throw new Error('Both transactions cancelled — email not sent')
+        }
+
+        if (minerTxId) {
+          setSendStep('Miner rewarded! Uploading...')
         }
 
         const attachmentPath = await uploadAttachment()
 
+        setSendStep('Saving email...')
         await supabase.from('emails').insert({
           from_wallet: addr,
           to_wallet: targetTo,
           subject,
           body,
-          tx_id: feeTxId,
+          dev_fee_txid: devTxId,
+          miner_fee_txid: minerTxId,
+          miner_address: minerAddress,
           attachment: attachmentPath,
         })
       } else {
@@ -192,6 +203,7 @@ export default function Compose() {
           ? `${profile.username}${EMAIL_DOMAIN}`
           : `anonymous${EMAIL_DOMAIN}`
 
+        setSendStep('Sending via Resend...')
         const res = await fetch(EDGE_SEND_URL, {
           method: 'POST',
           headers: {
@@ -218,7 +230,9 @@ export default function Compose() {
           to_wallet: `external:${to}`,
           subject,
           body,
-          tx_id: null,
+          dev_fee_txid: null,
+          miner_fee_txid: null,
+          miner_address: null,
           attachment: null,
         })
       }
@@ -228,6 +242,7 @@ export default function Compose() {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setSending(false)
+      setSendStep(null)
     }
   }
 
@@ -311,19 +326,35 @@ export default function Compose() {
             <img src={previewUrl} alt="Preview" className="max-w-xs rounded-xl" />
           )}
 
-          {/* Anti-bot Fee Notice - internal only */}
+          {/* Split Fee Notice - internal only */}
           {profile?.only_internal && (
             <div className="flex items-start gap-3 p-4 rounded-xl bg-gray-900/30 border border-gray-800/40">
               <Info className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
               <div className="text-xs text-gray-400 leading-relaxed">
-                <strong className="text-gray-300">Anti-bot requirement:</strong> A 2 KAS
-                anti-bot fee will be sent to the developer wallet upon sending. This is
-                mandatory to prevent spam and bots.
-                <span className="block mt-1 text-blue-300/80">
-                  Also requires &ge; 1 KAS balance in wallet (never spent, just anti-spam
-                  check).
+                <strong className="text-gray-300">Split-fee on-chain proof:</strong> Sending
+                triggers two wallet transactions:
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                    <span><strong className="text-emerald-300">1 KAS</strong> → Developer wallet (on-chain proof + platform)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0" />
+                    <span><strong className="text-cyan-300">1 KAS</strong> → Random top-50 miner (L1 network reward)</span>
+                  </div>
+                </div>
+                <span className="block mt-2 text-blue-300/80">
+                  Also requires &ge; 1 KAS balance (anti-spam check, never spent).
                 </span>
               </div>
+            </div>
+          )}
+
+          {/* Send progress */}
+          {sendStep && (
+            <div className="flex items-center gap-2.5 p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/15">
+              <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+              <span className="text-xs text-cyan-300">{sendStep}</span>
             </div>
           )}
 
@@ -352,7 +383,7 @@ export default function Compose() {
                 <>
                   <Send className="w-4 h-4" />
                   {profile?.only_internal
-                    ? 'Send KasMail (2 KAS fee)'
+                    ? 'Send KasMail (1 KAS dev + 1 KAS miner)'
                     : 'Send Email'}
                 </>
               )}

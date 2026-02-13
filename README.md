@@ -2,7 +2,7 @@
 
 **Send & receive messages tied to your Kaspa wallet address — no central server owns your identity. Send and receive email from any email provider**
 
-KasMail is a **client-side email-like messaging app** that uses Kaspa wallet addresses as identities and Supabase for message persistence + real-time sync. **Resend.com integration** enables real-time email send and receive, bypassing spam folders. Optional **on-chain dust transactions** provide cryptographic proof of sending (anti-spam + verifiable delivery).
+KasMail is a **client-side email-like messaging app** that uses Kaspa wallet addresses as identities and Supabase for message persistence + real-time sync. **Resend.com integration** enables real-time email send and receive, bypassing spam folders. Optional **on-chain transactions** provide cryptographic proof of sending (anti-spam + verifiable delivery) while simultaneously **rewarding Kaspa miners** to strengthen the L1 network effect.
 
 Live demo: //Add the link here Charles  
 GitHub: https://github.com/Zarbelt/Kasmail
@@ -15,13 +15,14 @@ GitHub: https://github.com/Zarbelt/Kasmail
 ## ✨ Features
 
 - **Wallet-based identity** (KasWare extension)
-- **Username@kasmail.modmedianetwork.com** style addresses (stored in Supabase `profiles`)
+- **Username@kasmail.org** style addresses (stored in Supabase `profiles`)
 - **Real-time inbox** via Supabase Realtime
 - **Send & receive external emails** via Resend.com integration
-- **Optional on-chain proof** (tiny ~2 KAS dust tx to developer wallet for onchain proof)
+- **Split on-chain proof + miner reward** (1 KAS to developer wallet for on-chain proof + 1 KAS to a random top-50 miner to support L1 network)
+- **Miner reward system** — every email sent distributes 1 KAS to a randomly selected miner from the top 50 mining pool addresses, supporting Kaspa's L1 network effect
 - **Anonymous mode** (hide username, show truncated address)
 - **KasMail-only mode** (`only_internal` flag) — restrict to other KasMail users
-- **Custom domain support** @kasmail.modmedianetwork.com
+- **Custom domain support** @kasmail.org
 - **Attachments** (stored in Supabase bucket `attachments`)
 - Clean Tailwind + React UI (AI-assisted design using DeepSeek AI)
 
@@ -29,12 +30,21 @@ GitHub: https://github.com/Zarbelt/Kasmail
 
 ## 🎯 Kaspa Integration
 
-KasMail uses Kaspa in two meaningful ways:
+KasMail uses Kaspa in three meaningful ways:
 
 1. **Identity** — Kaspa address = your email address (via KasWare extension)
-2. **Optional delivery proof** — sender can pay tiny dust transaction (~2 KAS) recorded as `kaspa_txid` in the `emails` row → verifiable on-chain
+2. **Delivery proof** — sender pays 1 KAS to the developer wallet, recorded as `dev_fee_txid` in the `emails` row → verifiable on-chain
+3. **Miner reward** — sender pays 1 KAS to a randomly selected top-50 mining pool address, recorded as `miner_fee_txid` → supports L1 network effect and incentivizes miners
 
 No full Kaspa node is required — only browser wallet interaction.
+
+### Fee Breakdown Per Email (Optional)
+
+| Recipient | Amount | Purpose |
+|-----------|--------|---------|
+| Developer wallet (`VITE_ADMIN_WALLET`) | 1 KAS | On-chain proof + platform sustainability |
+| Random top-50 miner (from Supabase `miner_addresses`) | 1 KAS | L1 network support + miner reward |
+| **Total** | **2 KAS** | |
 
 ---
 
@@ -44,6 +54,7 @@ No full Kaspa node is required — only browser wallet interaction.
 - **Wallet**: KasWare extension (window.kasware API)
 - **Backend / Storage / Realtime**: Supabase (PostgreSQL + Realtime + Storage)
 - **Email Service**: Resend.com (sending & receiving external emails)
+- **Miner Data**: Top 50 addresses from kaspa-pool.org stored in Supabase
 - **Deployment**: Vercel (frontend) + Supabase Edge Functions (webhooks)
 
 ---
@@ -54,7 +65,7 @@ No full Kaspa node is required — only browser wallet interaction.
 - KasWare browser extension (Chrome/Brave/Edge)
 - Supabase project (free tier is enough)
 - **Resend.com account** (free tier: 100 emails/day, 3,000/month)
-- Custom domain for email (e.g., `kasmail.modmedianetwork.com`)
+- Custom domain for email (e.g., `kasmail.org`)
 
 ---
 
@@ -77,7 +88,7 @@ Create `.env` in root:
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 
-# Optional - Developer wallet for on-chain proof
+# Developer wallet for on-chain proof (receives 1 KAS per email)
 VITE_ADMIN_WALLET=kaspa:qp...
 
 # ⚠️ DO NOT ADD RESEND_API_KEY HERE!
@@ -88,24 +99,28 @@ VITE_ADMIN_WALLET=kaspa:qp...
 
 **⚠️ VERY IMPORTANT** – Run these SQL commands in **Supabase → SQL Editor**:
 
+#### 3a. Core Tables (profiles + emails)
+
 ```sql
 -- Profiles table columns (if not already present)
 ALTER TABLE profiles
     ADD COLUMN IF NOT EXISTS username          TEXT UNIQUE,
     ADD COLUMN IF NOT EXISTS anonymous_mode    BOOLEAN DEFAULT FALSE,
-    ADD COLUMN IF NOT EXISTS email_suffix      TEXT DEFAULT '@kasmail.modmedianetwork.com' NOT NULL,
-    ADD COLUMN IF NOT EXISTS only_internal     BOOLEAN DEFAULT FALSE,     -- KasMail-only toggle
+    ADD COLUMN IF NOT EXISTS email_suffix      TEXT DEFAULT '@kasmail.org' NOT NULL,
+    ADD COLUMN IF NOT EXISTS only_internal     BOOLEAN DEFAULT FALSE,
     ADD COLUMN IF NOT EXISTS onchain_proof_default BOOLEAN DEFAULT FALSE;
 
 ALTER TABLE profiles ALTER COLUMN username DROP NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username);
 
--- Emails table extras (attachments + on-chain proof)
+-- Emails table extras (attachments + split on-chain proof)
 ALTER TABLE emails
     ADD COLUMN IF NOT EXISTS attachment_url  TEXT,
     ADD COLUMN IF NOT EXISTS attachment_name TEXT,
     ADD COLUMN IF NOT EXISTS attachment_type TEXT,
-    ADD COLUMN IF NOT EXISTS kaspa_txid      TEXT;
+    ADD COLUMN IF NOT EXISTS dev_fee_txid    TEXT,
+    ADD COLUMN IF NOT EXISTS miner_fee_txid  TEXT,
+    ADD COLUMN IF NOT EXISTS miner_address   TEXT;
 
 -- ⚠️ CRITICAL: Remove foreign key constraints that block external emails
 ALTER TABLE emails DROP CONSTRAINT IF EXISTS fk_from;
@@ -134,6 +149,19 @@ ON emails FOR SELECT TO anon
 USING (true);
 ```
 
+#### 3b. Miner Addresses Table (NEW — required for miner rewards)
+
+Run the full SQL from **`supabase_miner_schema.sql`** (included in this repo). This creates the `miner_addresses` table, seeds the top 50 miner addresses, adds RLS policies, and creates a `get_random_miner()` PostgreSQL function.
+
+```sql
+-- Quick summary of what the schema creates:
+-- • miner_addresses table (rank, address, is_active, pool_source)
+-- • 50 seeded addresses from kaspa-pool.org
+-- • RLS: anon can SELECT active addresses; service_role manages all
+-- • get_random_miner() function for server-side random selection
+-- • Tracking columns on emails: dev_fee_txid, miner_fee_txid, miner_address
+```
+
 ### 4. Run Development Server
 
 ```bash
@@ -160,7 +188,7 @@ KasMail uses **Resend.com** to send and receive emails from/to any email provide
 
 1. Go to **Resend Dashboard** → **Domains**
 2. Click **"Add Domain"**
-3. Enter: `kasmail.modmedianetwork.com` (your domain)
+3. Enter: `kasmail.org` (your domain)
 4. Click **"Add Domain"**
 
 ---
@@ -176,7 +204,7 @@ Name: _resend
 Value: resend-domain-verify=xxxxxxxxxxxxx
 
 Type: MX  
-Name: @ (or kasmail.modmedianetwork.com)
+Name: @ (or kasmail.org)
 Value: mx.resend.com
 Priority: 10
 
@@ -230,191 +258,6 @@ your-project/
 │           └── index.ts          ← Receives emails from Resend webhook
 ```
 
-**Create `supabase/functions/rapid-worker/index.ts`:**
-
-```typescript
-// Sends outgoing emails via Resend API
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method Not Allowed" }), 
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  try {
-    const { from, to, subject, text, html } = await req.json();
-
-    if (!from || !to || (!text && !html)) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields" }), 
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const resendResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from,
-        to,
-        subject: subject || "(No subject)",
-        text: text || undefined,
-        html: html || undefined,
-      }),
-    });
-
-    if (!resendResponse.ok) {
-      const errorData = await resendResponse.json();
-      return new Response(
-        JSON.stringify({ error: "Failed to send email", details: errorData.message }), 
-        { status: resendResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const resendData = await resendResponse.json();
-
-    return new Response(
-      JSON.stringify({ success: true, message: "Email sent successfully", emailId: resendData.id }), 
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: "Failed to send email", details: err.message }), 
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
-```
-
-**Create `supabase/functions/receive-kasmail/index.ts`:**
-
-```typescript
-// Receives incoming emails from Resend webhook
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
-  if (req.method !== "POST") {
-    return new Response(
-      JSON.stringify({ error: "Method Not Allowed" }), 
-      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-
-  try {
-    const payload = await req.json();
-    
-    const toFull = payload.to || "";
-    const username = toFull.split("@")[0].toLowerCase().trim();
-    const fromEmail = payload.from || "unknown@sender.com";
-    const subject = payload.subject || "(No subject)";
-    const body = payload.text || payload.html || "(No content)";
-
-    if (!username) {
-      return new Response(
-        JSON.stringify({ error: "Missing username in 'to' field" }), 
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Find user by username
-    const res = await fetch(
-      `${supabaseUrl}/rest/v1/profiles?username=eq.${encodeURIComponent(username)}&select=wallet_address`, 
-      {
-        headers: {
-          "apikey": supabaseAnonKey,
-          "Authorization": `Bearer ${supabaseAnonKey}`,
-        },
-      }
-    );
-
-    if (!res.ok) {
-      return new Response(
-        JSON.stringify({ error: "Failed to lookup user profile" }), 
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const profiles = await res.json();
-    if (!profiles?.length) {
-      return new Response(
-        JSON.stringify({ error: `User @${username} not found` }), 
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const toWallet = profiles[0].wallet_address;
-
-    // Insert email to database
-    const insertRes = await fetch(`${supabaseUrl}/rest/v1/emails`, {
-      method: "POST",
-      headers: {
-        "apikey": supabaseAnonKey,
-        "Authorization": `Bearer ${supabaseAnonKey}`,
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal",
-      },
-      body: JSON.stringify({
-        from_wallet: `external:${fromEmail}`,
-        to_wallet: toWallet,
-        subject,
-        body,
-        content: payload.html || body,
-        read: false,
-        created_at: new Date().toISOString(),
-      }),
-    });
-
-    if (!insertRes.ok) {
-      const err = await insertRes.text();
-      console.error("Insert failed:", err);
-      return new Response(
-        JSON.stringify({ error: "Failed to save email" }), 
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ success: true, message: "Email received and saved" }), 
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  } catch (err) {
-    return new Response(
-      JSON.stringify({ error: "Internal server error", details: err.message }), 
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-});
-```
-
 #### 5.3 Deploy Edge Functions
 
 ```bash
@@ -444,7 +287,7 @@ npx supabase functions deploy receive-kasmail
 
 1. Go to **Resend Dashboard** → **Inbound**
 2. Click **"Add Route"** or **"Configure"**
-3. **Domain:** Select `kasmail.modmedianetwork.com`
+3. **Domain:** Select `kasmail.org`
 4. **Status:** Enable
 5. Click **"Save"**
 
@@ -470,7 +313,7 @@ Status: ✅ Active
 #### Test Receiving Emails
 
 1. Set your username in KasMail Settings (e.g., "alice")
-2. Send an email from Gmail to: `alice@kasmail.modmedianetwork.com`
+2. Send an email from Gmail to: `alice@kasmail.org`
 3. Check your KasMail inbox - email should appear!
 
 #### Test Sending Emails
@@ -521,14 +364,14 @@ Status: ✅ Active
 - Go to `/settings`
 - Enter desired username (3–20 chars, a-z0-9_)
 - Check availability → Save
-- Your email becomes **username@kasmail.modmedianetwork.com**
+- Your email becomes **username@kasmail.org**
 
 ### 3. Configure Settings
 
 **Toggle modes (in Settings):**
 - **Anonymous mode** → hide username, show truncated address instead
 - **KasMail-only mode** (`only_internal`) → only receive messages from other KasMail users
-- **Default on-chain proof** → auto-enable dust tx proof when composing
+- **Default on-chain proof** → auto-enable on-chain proof + miner reward when composing
 
 ### 4. Send Messages
 
@@ -536,7 +379,7 @@ Status: ✅ Active
 - Go to `/compose`
 - Enter recipient: `username` or `kaspa:address`
 - Optional: attach file, toggle on-chain proof
-- Send → wallet popup for dust tx if enabled
+- Send → two wallet popups: 1 KAS dev fee + 1 KAS miner reward (if enabled)
 
 #### External (KasMail to Gmail/Outlook):
 - Turn **OFF** "Only KasMail Users" in Settings
@@ -548,6 +391,27 @@ Status: ✅ Active
 
 - **Internal** (KasMail → KasMail): Real-time via Supabase
 - **External** (Gmail → KasMail): Via Resend webhook → Edge Function → Database → Inbox
+
+---
+
+## ⛏️ Miner Reward System
+
+KasMail implements a novel approach to supporting the Kaspa mining ecosystem. Every email sent with on-chain proof triggers two transactions:
+
+1. **1 KAS → Developer wallet** — sustains the platform and provides on-chain delivery proof
+2. **1 KAS → Random miner** — selected from a pool of top 50 mining addresses indexed from kaspa-pool.org
+
+### How It Works
+
+1. The `miner_addresses` table in Supabase stores the top 50 mining pool addresses
+2. When a user sends an email with on-chain proof enabled, `kaspa.ts` fetches a random miner address from Supabase
+3. Two separate KasWare wallet popups appear for the user to confirm each transaction
+4. Both transaction IDs are stored in the `emails` table (`dev_fee_txid` + `miner_fee_txid`)
+5. The miner address that received the reward is also stored for transparency
+
+### Updating Miner Addresses
+
+To refresh the miner list, update the `miner_addresses` table in Supabase with new addresses from kaspa-pool.org. Use `is_active = FALSE` to disable old addresses without deleting them.
 
 ---
 
@@ -578,7 +442,7 @@ npx supabase functions deploy
 ## 🤖 AI Usage Disclosure (Kaspathon Requirement)
 
 - **UI/Design**: DeepSeek AI was used to generate and refine most Tailwind + React component styles, layouts, icons arrangement, color palette and responsiveness.
-- **Code logic**: Mostly hand-written or lightly adapted (wallet connection, Supabase queries, webhook handler, Kaspa dust tx).
+- **Code logic**: Mostly hand-written or lightly adapted (wallet connection, Supabase queries, webhook handler, Kaspa dust tx, miner reward logic).
 - **README & docs**: Written by human with AI assistance for structure and clarity.
 
 → **AI was not used to generate the core business logic or Kaspa integration.**
@@ -589,10 +453,11 @@ npx supabase functions deploy
 
 - Never log private keys or full wallet info
 - Service role key is used **only** in Edge Functions (never in client)
-- Dust tx is optional and very small (2 KAS)
+- On-chain fees are optional and transparent (1 KAS dev + 1 KAS miner = 2 KAS total)
 - You can remove the anti-bot fee requirement by changing `hasMinimumKAS()` logic
 - **Never use `VITE_` prefix for API keys** (only use for Supabase anon key, which is public)
 - Resend API key is stored in Supabase Edge Functions secrets (server-side only)
+- Miner addresses are read-only for anonymous users (RLS enforced)
 
 ---
 
@@ -610,7 +475,9 @@ MIT License
 - **Resend** - Modern email infrastructure
 - **Vercel** - Deployment platform
 - **DeepSeek AI** - UI/UX design assistance
+- **kaspa-pool.org** - Mining pool address data
+- **miningpoolstats.stream** - Mining statistics reference
 
 ---
 
-**Built with ❤️ for the Kaspa ecosystem**
+**Built with ❤️ for the Kaspa ecosystem — every email supports a miner**

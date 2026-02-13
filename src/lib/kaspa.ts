@@ -1,5 +1,7 @@
 // src/lib/kaspa.ts
 
+import { supabase } from './supabaseClient'
+
 // Extend window typings for Kasware (full API from docs)
 declare global {
   interface Window {
@@ -24,8 +26,17 @@ declare global {
 }
 
 // Constants
-const MINIMUM_SOMPI = 100_000_000n // 1 KAS
-const ANTI_BOT_FEE_SOMPI = 200_000_000n // 2 KAS (anti-bot fee)
+const MINIMUM_SOMPI = 100_000_000n       // 1 KAS (minimum balance check)
+const DEV_FEE_SOMPI = 100_000_000n       // 1 KAS → developer wallet
+const MINER_REWARD_SOMPI = 100_000_000n  // 1 KAS → random miner from top 50
+
+// Types
+export interface MinerAddress {
+  id: number
+  rank: number
+  address: string
+  created_at?: string
+}
 
 /**
  * Connect wallet and request permission
@@ -98,38 +109,95 @@ export async function signChallenge(challenge: string): Promise<string | null> {
 }
 
 /**
- * Send 2 KAS anti-bot fee transaction for email sending
- * This will trigger wallet popup for user to confirm/sign the send
- * Returns txid or null if failed/cancelled
+ * Fetch a random miner address from the top 50 miner addresses stored in Supabase.
+ * Falls back to null if the table is empty or query fails.
  */
-export async function sendAntiBotFee(): Promise<string | null> {
-  if (!window.kasware?.sendKaspa) {
-    console.warn('Kasware sendKaspa method is not available in this version – anti-bot fee skipped');
-    alert('Anti-bot fee not supported in current Kasware version. Message will send without fee.');
+export async function getRandomMinerAddress(): Promise<string | null> {
+  try {
+    // Fetch all miner addresses from Supabase
+    const { data, error } = await supabase
+      .from('miner_addresses')
+      .select('address')
+
+    if (error) {
+      console.error('Failed to fetch miner addresses:', error);
+      return null;
+    }
+
+    if (!data || data.length === 0) {
+      console.warn('No miner addresses found in miner_addresses table');
+      return null;
+    }
+
+    // Pick a random address from the list
+    const randomIndex = Math.floor(Math.random() * data.length);
+    return data[randomIndex].address;
+  } catch (err) {
+    console.error('Unexpected error fetching miner address:', err);
     return null;
   }
+}
 
+/**
+ * Send 1 KAS developer fee + 1 KAS miner reward for email sending.
+ * Transaction 1: 1 KAS → developer wallet (VITE_ADMIN_WALLET)
+ * Transaction 2: 1 KAS → random top-50 miner address (from Supabase)
+ *
+ * Both trigger wallet popups for user confirmation.
+ * Returns { devTxId, minerTxId } or null values if either fails/cancelled.
+ */
+export async function sendAntiBotFee(): Promise<{
+  devTxId: string | null
+  minerTxId: string | null
+  minerAddress: string | null
+}> {
+  const result = { devTxId: null as string | null, minerTxId: null as string | null, minerAddress: null as string | null };
+
+  if (!window.kasware?.sendKaspa) {
+    console.warn('Kasware sendKaspa method is not available — anti-bot fee skipped');
+    alert('Anti-bot fee not supported in current Kasware version. Message will send without fee.');
+    return result;
+  }
+
+  // ── Transaction 1: 1 KAS → Developer Wallet ──────────────────────────
   const adminWallet = import.meta.env.VITE_ADMIN_WALLET;
   if (!adminWallet) {
-    console.error('VITE_ADMIN_WALLET is not set in .env – anti-bot fee skipped');
-    alert('Developer wallet not configured. Message will send without anti-bot fee.');
-    return null;
+    console.error('VITE_ADMIN_WALLET is not set in .env — dev fee skipped');
+    alert('Developer wallet not configured. Message will send without developer fee.');
+  } else {
+    try {
+      console.log(`Sending 1 KAS dev fee (${Number(DEV_FEE_SOMPI)} sompi) to ${adminWallet}...`);
+      const txid = await window.kasware.sendKaspa(
+        adminWallet,
+        Number(DEV_FEE_SOMPI),
+        { priorityFee: 0 }
+      );
+      console.log('Dev fee tx successful! TxID:', txid);
+      result.devTxId = txid;
+    } catch (err) {
+      console.error('Dev fee transaction failed or user cancelled:', err);
+    }
   }
 
+  // ── Transaction 2: 1 KAS → Random Miner from Top 50 ─────────────────
   try {
-    console.log(`Attempting to send anti-bot fee (${Number(ANTI_BOT_FEE_SOMPI)} sompi) to ${adminWallet}...`);
-
-    const txid = await window.kasware.sendKaspa(
-      adminWallet,
-      Number(ANTI_BOT_FEE_SOMPI), // safe conversion for small number
-      { priorityFee: 0 }   // no extra fee needed
-    );
-
-    console.log('Anti-bot fee tx successful! TxID:', txid);
-    return txid;
+    const minerAddress = await getRandomMinerAddress();
+    if (!minerAddress) {
+      console.warn('No miner address available — miner reward skipped');
+    } else {
+      console.log(`Sending 1 KAS miner reward (${Number(MINER_REWARD_SOMPI)} sompi) to ${minerAddress}...`);
+      const txid = await window.kasware.sendKaspa(
+        minerAddress,
+        Number(MINER_REWARD_SOMPI),
+        { priorityFee: 0 }
+      );
+      console.log('Miner reward tx successful! TxID:', txid);
+      result.minerTxId = txid;
+      result.minerAddress = minerAddress;
+    }
   } catch (err) {
-    console.error('Anti-bot fee transaction failed or user cancelled:', err);
-    // User cancelled or error – proceed without tx
-    return null;
+    console.error('Miner reward transaction failed or user cancelled:', err);
   }
+
+  return result;
 }
