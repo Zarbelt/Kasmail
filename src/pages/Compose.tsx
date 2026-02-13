@@ -307,7 +307,7 @@ export default function Compose() {
           </div>
 
           {/* Attachment */}
-          <div className="flex items-center gap-3">
+          {/*<div className="flex items-center gap-3">
             <label className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-gray-800/30 border border-gray-700/50 hover:border-cyan-500/40 cursor-pointer transition-colors text-sm">
               <Paperclip className="w-3.5 h-3.5" />
               Attach
@@ -324,7 +324,7 @@ export default function Compose() {
           </div>
           {previewUrl && (
             <img src={previewUrl} alt="Preview" className="max-w-xs rounded-xl" />
-          )}
+          )}*/}
 
           {/* Split Fee Notice - internal only */}
           {profile?.only_internal && (

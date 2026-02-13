@@ -40,24 +40,19 @@ const DOC_SECTIONS = [
     title: 'Features',
     items: [
       ['Wallet-based identity', 'KasWare extension — your Kaspa address is your email'],
-      ['Username@kasmail.org', 'Custom email addresses stored in Supabase profiles'],
-      ['Real-time inbox', 'Instant updates via Supabase Realtime subscriptions'],
-      ['External email', 'Send/receive Gmail, Outlook via Resend.com relay'],
+      ['Username@kasmail.org', 'Custom email addresses stored in server'],
+      ['Real-time inbox', 'Instant updates'],
+      ['External email', 'Send/receive Gmail, Outlook e.tc'],
       ['Split on-chain proof', '1 KAS dev fee + 1 KAS miner reward per email'],
       ['Anonymous mode', 'Hide username, show truncated wallet address only'],
       ['KasMail-only mode', 'Restrict inbox to other KasMail users only'],
-      ['File attachments', 'Up to 5MB, stored in Supabase storage bucket'],
+      ['File attachments', 'Coming soon '],
     ],
   },
   {
     title: 'Quick Setup',
     code: `git clone https://github.com/Zarbelt/Kasmail.git
 cd Kasmail && pnpm install
-
-# .env
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_ADMIN_WALLET=kaspa:qp...
 
 npm run dev`,
   },
@@ -68,8 +63,8 @@ npm run dev`,
       ['Wallet', 'KasWare browser extension (window.kasware API)'],
       ['Backend', 'Supabase — PostgreSQL + Realtime + Storage'],
       ['Email Service', 'Resend.com (send & receive external)'],
-      ['Miner Data', 'Top 50 addresses from kaspa-pool.org in Supabase'],
-      ['Deployment', 'Vercel (frontend) + Supabase Edge Functions'],
+      ['Miner Data', 'Every email distributes 1 KAS To a random miner from a top pool- L1 Network Effect.'],
+      ['Deployment', 'Vercel (frontend) + robust backend'],
     ],
   },
 ]
@@ -77,9 +72,9 @@ npm run dev`,
 /* ── Research paper sections ─────────────────────────────────────────────── */
 const RESEARCH = [
   { n: '1', t: 'Scope', b: 'Deliver small Kaspa payloads across the miner network using KasMail. Each email splits a 2 KAS fee: 1 KAS to the developer wallet + 1 KAS to a random top-50 miner.' },
-  { n: '2', t: 'Split-Fee Architecture', b: 'Transaction 1 → 1 KAS to VITE_ADMIN_WALLET (on-chain proof + platform). Transaction 2 → 1 KAS to a randomly selected miner from the Supabase miner_addresses table.' },
-  { n: '3', t: 'Implementation', b: 'KasWare API signs transactions in-browser. Supabase stores miner addresses with RLS. Both txIds (dev_fee_txid + miner_fee_txid) recorded in the emails table for transparency.' },
-  { n: '4', t: 'Development Process', b: 'Index top 50 from kaspa-pool.org → Import CSV to Supabase → Frontend fetches random miner at send-time → Two wallet popups → Both txIds stored with email.' },
+  { n: '2', t: 'Split-Fee Architecture', b: 'Transaction 1 → 1 KAS to VITE_ADMIN_WALLET (on-chain proof + platform). Transaction 2 → 1 KAS to a randomly selected miner from the backend miner_addresses table.' },
+  { n: '3', t: 'Implementation', b: 'KasWare API signs transactions in-browser. backend stores miner addresses with RLS. Both txIds (dev_fee_txid + miner_fee_txid) recorded in the emails table for transparency.' },
+  { n: '4', t: 'Development Process', b: 'Index top 50 from kaspa-pool.org → Import CSV to backend → Frontend fetches random miner at send-time → Two wallet popups → Both txIds stored with email.' },
 ]
 
 const MINERS_SAMPLE = [
@@ -310,7 +305,7 @@ export default function Login() {
               { icon: Pickaxe, t: 'Miner Rewards', d: 'Every email distributes 1 KAS to a random miner from the top 50 pool — L1 network effect.', c: 'text-emerald-400 bg-emerald-500/[0.06] border-emerald-500/10' },
               { icon: Globe, t: 'External Email', d: 'Send to Gmail, Outlook via Resend.com. Receive external emails into your KasMail inbox.', c: 'text-blue-400 bg-blue-500/[0.06] border-blue-500/10' },
               { icon: EyeOff, t: 'Anonymous Mode', d: 'Hide your username entirely. Only a truncated wallet address is visible to recipients.', c: 'text-violet-400 bg-violet-500/[0.06] border-violet-500/10' },
-              { icon: Database, t: 'Supabase Backend', d: 'Real-time inbox, file storage, miner address management — all with Row Level Security.', c: 'text-amber-400 bg-amber-500/[0.06] border-amber-500/10' },
+              { icon: Database, t: ' Backend', d: 'Real-time inbox, file storage, miner address management — all with Row Level Security.', c: 'text-amber-400 bg-amber-500/[0.06] border-amber-500/10' },
               { icon: Zap, t: 'On-Chain Proof', d: 'Both transaction IDs (dev + miner) stored in the emails table for verifiable delivery.', c: 'text-rose-400 bg-rose-500/[0.06] border-rose-500/10' },
             ].map((f, i) => (
               <div key={i} className="p-5 rounded-2xl border border-gray-800/30 bg-[#0a0a0f] hover:border-gray-700/40 transition-all">
@@ -443,7 +438,7 @@ export default function Login() {
                       Kaspa Payloads for Supporting Miners' L1 Network Effect
                     </h3>
                     <p className="text-[11px] text-emerald-400 font-bold mt-1">MMEDIANET SF1 — Standard Framework</p>
-                    <p className="text-[10px] text-gray-500 mt-0.5">Updated: KasMail Split-Fee Model via Supabase + KasWare</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">Updated: KasMail Split-Fee Model via Backend + KasWare</p>
                   </div>
                 </div>
               </div>
@@ -474,7 +469,7 @@ export default function Login() {
                     </div>
                   ))}
                   <div className="px-3 py-2 border-t border-gray-800/20 text-center">
-                    <span className="text-[10px] text-gray-700">… 45 more in Supabase <code className="text-gray-600">miner_addresses</code></span>
+                    <span className="text-[10px] text-gray-700">… 45 more in backend <code className="text-gray-600">miner_addresses</code></span>
                   </div>
                 </div>
               </div>
