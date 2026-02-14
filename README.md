@@ -7,9 +7,6 @@ KasMail is a **client-side email-like messaging app** that uses Kaspa wallet add
 Live demo: https://youtu.be/8t9Crw1qtmU
 GitHub: https://github.com/Zarbelt/Kasmail
 
-![KasMail Screenshot](https://via.placeholder.com/1280x720.png?text=KasMail+Screenshot+-+replace+with+your+own)  
-*(Replace this placeholder with a real screenshot you will upload to the repo for Kaspathon thumbnail)*
-
 ---
 
 ## ✨ Features
