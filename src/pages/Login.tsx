@@ -26,10 +26,7 @@ const DOC_SECTIONS = [
   },
   {
     title: 'Quick Setup',
-    code: `git clone https://github.com/Zarbelt/Kasmail.git
-cd Kasmail && pnpm install
-
-npm run dev`,
+    code: `git clone https://github.com/Zarbelt/Kasmail.git\ncd Kasmail && pnpm install\n\nnpm run dev`,
   },
   {
     title: 'Tech Stack',
@@ -72,25 +69,34 @@ export default function Login() {
     setLoading(true)
     setError(null)
     try {
+      // Step 1: Connect wallet
       const address = await connectKaswareWallet()
       if (!address) throw new Error('Wallet connection cancelled or failed')
 
+      // Step 2: Check minimum KAS balance
       const hasMin = await hasMinimumKAS()
       if (!hasMin) throw new Error('Minimum 1 KAS required in wallet to use KasMail')
 
+      // Step 3: Sign challenge (proof of wallet ownership)
       const challenge = `kasmail-login-v1-${Date.now()}-${Math.random().toString(36).slice(2)}`
       const signature = await signChallenge(challenge)
       if (!signature) throw new Error('Proof of ownership failed')
 
+      // Step 4: Upsert profile — wallet_address is the only identity key
       const { error: upsertError } = await supabase
         .from('profiles')
-        .upsert({ wallet_address: address }, { onConflict: 'wallet_address' })
+        .upsert(
+          { wallet_address: address },
+          { onConflict: 'wallet_address' }
+        )
       if (upsertError) throw new Error(upsertError.message)
 
+      // Step 5: Store wallet locally and navigate
       localStorage.setItem('kasmail_wallet', address)
       navigate('/inbox')
-    } catch {
-      setError('Connection failed. Make sure KasWare is installed and try again.')
+    } catch (err: any) {
+      console.error('Login error:', err)
+      setError(err?.message ?? 'Connection failed. Make sure KasWare is installed and try again.')
     } finally {
       setLoading(false)
     }
@@ -157,7 +163,7 @@ export default function Login() {
           </h1>
 
           <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto mb-8 leading-relaxed">
-            Every KasMail message sends 1 KAS to a random top miner — supporting the network while proving authenticity on-chain. 
+            Every KasMail message sends 1 KAS to a random top miner — supporting the network while proving authenticity on-chain.
             Connect your wallet, no accounts needed.
           </p>
 
@@ -170,7 +176,7 @@ export default function Login() {
                   Set a Username to Receive Emails
                 </h3>
                 <p className="text-xs text-blue-100/80 leading-relaxed">
-                  After connecting your wallet, set a username in Settings to receive external emails at <span className="font-mono text-blue-200">username@kasmail.org</span>. 
+                  After connecting your wallet, set a username in Settings to receive external emails at <span className="font-mono text-blue-200">username@kasmail.org</span>.
                   Without a username, you can send emails but won't be able to receive messages from external senders.
                 </p>
               </div>

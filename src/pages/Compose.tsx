@@ -131,7 +131,7 @@ export default function Compose() {
     let targetTo = to.trim()
 
     if (isInternalMode) {
-      // ── internal path ────────────────────────────────────────
+      //  internal path 
       console.log("[SEND] Internal send - resolving recipient")
 
       if (to.includes('@') && !to.endsWith(EMAIL_DOMAIN)) {
@@ -173,7 +173,7 @@ export default function Compose() {
 
       if (insertError) throw insertError
     } else {
-      // ── external path ────────────────────────────────────────
+      //  external path 
       console.log("[SEND] External send ")
 
       if (!to.includes('@') || to.endsWith(EMAIL_DOMAIN)) {
