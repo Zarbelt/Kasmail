@@ -4,11 +4,8 @@
 
 KasMail is a **client-side email-like messaging app** that uses Kaspa wallet addresses as identities and Supabase for message persistence + real-time sync. **Resend.com integration** enables real-time email send and receive, bypassing spam folders. Optional **on-chain transactions** provide cryptographic proof of sending (anti-spam + verifiable delivery) while simultaneously **rewarding Kaspa miners** to strengthen the L1 network effect.
 
-Live demo: //Add the link here Charles  
+Live demo: https://youtu.be/8t9Crw1qtmU
 GitHub: https://github.com/Zarbelt/Kasmail
-
-![KasMail Screenshot](https://via.placeholder.com/1280x720.png?text=KasMail+Screenshot+-+replace+with+your+own)  
-*(Replace this placeholder with a real screenshot you will upload to the repo for Kaspathon thumbnail)*
 
 ---
 
