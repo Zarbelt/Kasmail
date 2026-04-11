@@ -20,21 +20,14 @@ export default function Sent() {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center text-red-400 text-sm">
-        {error}
-      </div>
+      <div className="h-full flex items-center justify-center text-red-400 text-sm">{error}</div>
     )
   }
 
-  // Separate internal and external
-  const internalEmails = emails.filter(
-    (e: Email) => !e.to_wallet.startsWith('external:')
-  )
-  const externalEmails = emails.filter(
-    (e: Email) => e.to_wallet.startsWith('external:')
-  )
+  const internalEmails = emails.filter(e => !e.to_wallet.startsWith('external:'))
+  const externalEmails = emails.filter(e => e.to_wallet.startsWith('external:'))
 
-  const renderEmailCard = (email: Email, isExternal: boolean) => {
+  const renderCard = (email: Email, isExternal: boolean) => {
     const recipientDisplay = isExternal
       ? email.to_wallet.replace('external:', '')
       : `${email.to_wallet.slice(0, 12)}...${email.to_wallet.slice(-6)}`
@@ -46,44 +39,33 @@ export default function Sent() {
         className="group p-4 rounded-xl bg-gray-900/20 border border-gray-800/30 hover:border-cyan-600/40 cursor-pointer transition-all"
       >
         <div className="flex items-start gap-3">
-          <div
-            className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
-              isExternal
-                ? 'bg-purple-500/10 border border-purple-500/20'
-                : 'bg-cyan-500/10 border border-cyan-500/20'
-            }`}
-          >
-            {isExternal ? (
-              <Globe className="w-4 h-4 text-purple-400" />
-            ) : (
-              <Lock className="w-4 h-4 text-cyan-400" />
-            )}
+          <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
+            isExternal
+              ? 'bg-purple-500/10 border border-purple-500/20'
+              : 'bg-cyan-500/10 border border-cyan-500/20'
+          }`}>
+            {isExternal
+              ? <Globe className="w-4 h-4 text-purple-400" />
+              : <Lock className="w-4 h-4 text-cyan-400" />
+            }
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start mb-1">
               <div className="flex items-center gap-2">
-                <p className="font-medium text-sm text-white truncate">
-                  To: {recipientDisplay}
-                </p>
+                <p className="font-medium text-sm text-white truncate">To: {recipientDisplay}</p>
                 {isExternal && (
-                  <span className="px-1.5 py-0.5 text-[10px] bg-purple-500/70 text-white rounded-full font-bold">
-                    EXTERNAL
-                  </span>
+                  <span className="px-1.5 py-0.5 text-[10px] bg-purple-500/70 text-white rounded-full font-bold">EXT</span>
                 )}
               </div>
               <p className="text-xs text-gray-500 whitespace-nowrap ml-3">
                 {new Date(email.created_at).toLocaleString([], {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
+                  month: 'short', day: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
                 })}
               </p>
             </div>
-            <p className="text-gray-400 text-xs truncate">
-              {email.subject || '(No subject)'}
-            </p>
+            <p className="text-gray-400 text-xs truncate">{email.subject || '(No subject)'}</p>
           </div>
         </div>
       </div>
@@ -113,7 +95,7 @@ export default function Sent() {
         </div>
       ) : (
         <div className="space-y-6 overflow-auto">
-          {/* Internal Sent */}
+
           {internalEmails.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -123,14 +105,11 @@ export default function Sent() {
                 </h2>
               </div>
               <div className="space-y-2">
-                {internalEmails.map((email: Email) =>
-                  renderEmailCard(email, false)
-                )}
+                {internalEmails.map(e => renderCard(e, false))}
               </div>
             </div>
           )}
 
-          {/* External Sent */}
           {externalEmails.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -140,12 +119,11 @@ export default function Sent() {
                 </h2>
               </div>
               <div className="space-y-2">
-                {externalEmails.map((email: Email) =>
-                  renderEmailCard(email, true)
-                )}
+                {externalEmails.map(e => renderCard(e, true))}
               </div>
             </div>
           )}
+
         </div>
       )}
     </div>

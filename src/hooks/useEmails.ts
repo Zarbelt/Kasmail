@@ -13,7 +13,6 @@ export function useEmails(filter: FilterType = 'all') {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentAddress, setCurrentAddress] = useState<string | null>(null)
-  const [onlyInternal, setOnlyInternal] = useState<boolean | null>(null) // New: user's setting
 
   const loadEmails = async () => {
     setLoading(true)
@@ -34,43 +33,24 @@ export function useEmails(filter: FilterType = 'all') {
     }
 
     try {
-      // Load user's only_internal preference (once)
-      if (onlyInternal === null) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('only_internal')
-          .eq('wallet_address', addr)
-          .single()
-
-        setOnlyInternal(profile?.only_internal ?? true) // default true if missing
-      }
-
       let query = supabase
         .from('emails')
         .select('*')
         .order('created_at', { ascending: false })
 
-      // Apply tab filter
       if (filter === 'inbox') {
         query = query.eq('to_wallet', addr)
       } else if (filter === 'sent') {
         query = query.eq('from_wallet', addr)
-      } else if (filter === 'trash') {
-        // Future: add .eq('archived', true) or status filter
-      } else if (filter === 'junk') {
-        // Future: spam detection
+      } else if (filter === 'all') {
+        query = query.or(`from_wallet.eq.${addr},to_wallet.eq.${addr}`)
       }
+      // trash and junk: show all for now until status column is added
 
       const { data, error } = await query
       if (error) throw error
 
-      // Apply only_internal filter client-side
-      let filtered = data || []
-      if (onlyInternal === true) {
-        filtered = filtered.filter(e => !e.from_wallet.startsWith('external:'))
-      }
-
-      setEmails(filtered)
+      setEmails(data || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load messages')
     } finally {
@@ -82,7 +62,7 @@ export function useEmails(filter: FilterType = 'all') {
     loadEmails()
 
     const channel = supabase
-      .channel('emails-changes')
+      .channel(`emails-${filter}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'emails' }, () => {
         loadEmails()
       })
@@ -91,13 +71,13 @@ export function useEmails(filter: FilterType = 'all') {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [filter, navigate, onlyInternal]) // Re-run when onlyInternal changes
+  }, [filter, navigate])
 
-  return { 
-    emails, 
-    loading, 
-    error, 
-    currentAddress, 
-    refresh: loadEmails 
+  return {
+    emails,
+    loading,
+    error,
+    currentAddress,
+    refresh: loadEmails,
   }
 }

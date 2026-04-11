@@ -5,7 +5,6 @@ import { AlertTriangle, Globe, Lock } from 'lucide-react'
 
 export default function Junk() {
   const navigate = useNavigate()
-  // For now show all (until real junk/spam filter)
   const { emails, loading, error } = useEmails('all')
 
   if (loading) {
@@ -21,28 +20,21 @@ export default function Junk() {
 
   if (error) {
     return (
-      <div className="h-full flex items-center justify-center text-red-400 text-sm">
-        {error}
-      </div>
+      <div className="h-full flex items-center justify-center text-red-400 text-sm">{error}</div>
     )
   }
 
-  // Separate internal and external
   const internalEmails = emails.filter(
-    (e: Email) =>
-      !e.from_wallet.startsWith('external:') &&
-      !e.to_wallet.startsWith('external:')
+    e => !e.from_wallet.startsWith('external:') && !e.to_wallet.startsWith('external:')
   )
   const externalEmails = emails.filter(
-    (e: Email) =>
-      e.from_wallet.startsWith('external:') ||
-      e.to_wallet.startsWith('external:')
+    e => e.from_wallet.startsWith('external:') || e.to_wallet.startsWith('external:')
   )
 
-  const renderEmailCard = (email: Email) => {
+  const renderCard = (email: Email) => {
     const isExternalFrom = email.from_wallet.startsWith('external:')
-    const isExternalTo = email.to_wallet.startsWith('external:')
-    const isExternal = isExternalFrom || isExternalTo
+    const isExternalTo   = email.to_wallet.startsWith('external:')
+    const isExternal     = isExternalFrom || isExternalTo
 
     const fromDisplay = isExternalFrom
       ? email.from_wallet.replace('external:', '')
@@ -56,47 +48,38 @@ export default function Junk() {
       <div
         key={email.id}
         onClick={() => navigate(`/email/${email.id}`)}
-        className="group p-4 rounded-xl bg-gray-900/20 border border-gray-800/30 hover:border-yellow-600/40 cursor-pointer transition-all opacity-80 hover:opacity-100"
+        className="group p-4 rounded-xl bg-gray-900/20 border border-gray-800/30 hover:border-yellow-600/40 cursor-pointer transition-all"
       >
         <div className="flex items-start gap-3">
-          <div
-            className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
-              isExternal
-                ? 'bg-purple-500/10 border border-purple-500/20'
-                : 'bg-yellow-500/10 border border-yellow-500/20'
-            }`}
-          >
-            {isExternal ? (
-              <Globe className="w-4 h-4 text-purple-400" />
-            ) : (
-              <AlertTriangle className="w-4 h-4 text-yellow-400" />
-            )}
+          <div className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
+            isExternal
+              ? 'bg-purple-500/10 border border-purple-500/20'
+              : 'bg-yellow-500/10 border border-yellow-500/20'
+          }`}>
+            {isExternal
+              ? <Globe className="w-4 h-4 text-purple-400" />
+              : <AlertTriangle className="w-4 h-4 text-yellow-400" />
+            }
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex justify-between items-start mb-1">
               <div className="flex items-center gap-2">
                 <p className="font-medium text-sm text-white truncate">
-                  {fromDisplay} &rarr; {toDisplay}
+                  {fromDisplay} → {toDisplay}
                 </p>
                 {isExternal && (
-                  <span className="px-1.5 py-0.5 text-[10px] bg-purple-500/70 text-white rounded-full font-bold">
-                    EXTERNAL
-                  </span>
+                  <span className="px-1.5 py-0.5 text-[10px] bg-purple-500/70 text-white rounded-full font-bold">EXT</span>
                 )}
               </div>
               <p className="text-xs text-gray-500 whitespace-nowrap ml-3">
                 {new Date(email.created_at).toLocaleString([], {
-                  month: 'short',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
+                  month: 'short', day: 'numeric',
+                  hour: '2-digit', minute: '2-digit',
                 })}
               </p>
             </div>
-            <p className="text-gray-400 text-xs truncate">
-              {email.subject || '(No subject)'}
-            </p>
+            <p className="text-gray-400 text-xs truncate">{email.subject || '(No subject)'}</p>
           </div>
         </div>
       </div>
@@ -126,7 +109,7 @@ export default function Junk() {
         </div>
       ) : (
         <div className="space-y-6 overflow-auto">
-          {/* Internal junk */}
+
           {internalEmails.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -136,12 +119,11 @@ export default function Junk() {
                 </h2>
               </div>
               <div className="space-y-2">
-                {internalEmails.map((email: Email) => renderEmailCard(email))}
+                {internalEmails.map(e => renderCard(e))}
               </div>
             </div>
           )}
 
-          {/* External junk */}
           {externalEmails.length > 0 && (
             <div>
               <div className="flex items-center gap-2 mb-3">
@@ -151,10 +133,11 @@ export default function Junk() {
                 </h2>
               </div>
               <div className="space-y-2">
-                {externalEmails.map((email: Email) => renderEmailCard(email))}
+                {externalEmails.map(e => renderCard(e))}
               </div>
             </div>
           )}
+
         </div>
       )}
     </div>
